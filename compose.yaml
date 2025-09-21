@@ -1,0 +1,43 @@
+services:
+
+  app:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    entrypoint: /app/entrypoint.sh
+    #command: tail -f /dev/null #test mode
+    command: uvicorn app.server:app --reload --host=0.0.0.0 --port=8001 --ssl-keyfile ./.configs/key.pem --ssl-certfile ./.configs/cert.pem #reload mode
+    volumes:
+      - ./src:/app
+      - ./src/.logs:/app/.logs
+      - ./src/.configs:/app/.configs
+    ports:
+      - "127.0.0.1:8001:8001"
+    env_file:
+      - .env
+    networks:
+      - dbmate-network
+
+  database:
+    image: "postgres:15.14"
+    restart: unless-stopped
+    env_file:
+       - .env
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg15-volume-database:/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "sleep 5"] #workaround to wait for postgresql
+      interval : 10s
+      timeout : 10s
+      retries : 5
+    networks:
+      - dbmate-network
+
+volumes:
+  pg15-volume-database:
+
+networks:
+  dbmate-network:
