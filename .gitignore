@@ -3,6 +3,7 @@
 *.env
 
 # folders
+.venv/*
 temp/*
 data/*
 *-data/*
@@ -10,9 +11,11 @@ data-*/*
 configs/*
 .configs/*
 src/.configs/*
+.logs/*
+src/.logs/*
 
 
-# extentions
+# extensions
 *.csv
 *.txt
 *.env

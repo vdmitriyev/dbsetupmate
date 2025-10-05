@@ -66,8 +66,5 @@ tasks:
     silent: true
     deps: [check-virtualenv, generate-ssl]
     cmds:
-      #- echo {{.ENV_FILE_NAME}}
-      #- echo "dsadsa"
-      #- echo $ENV_FILE_NAME
       - echo "Run FastAPI on -> {{.APP_HOST}}:{{.APP_PORT}}"
       - uvicorn app.server:app --reload --host={{.APP_HOST}} --port={{.APP_PORT}} --ssl-keyfile ./.configs/key.pem --ssl-certfile ./.configs/cert.pem
