@@ -20,3 +20,8 @@ class CheckDBConnectionResponseExample(BaseModel):
     message: str = Field(
         ..., json_schema_extra={"example": "Connection successful"}, description="Message information."
     )
+
+
+class User(BaseModel):
+    username: str = Field(..., example="testuser")
+    password: str = Field(..., example="testpassword")
