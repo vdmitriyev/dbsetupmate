@@ -1,0 +1,29 @@
+services:
+
+  database-15:
+    image: "postgres:15"
+    restart: unless-stopped
+    env_file:
+       - .env
+    environment:
+      PGDATA: /pgdata
+      POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
+      POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg15-volume-database:/pgdata
+    healthcheck:
+      test: [ "CMD-SHELL", "sleep 5"] #workaround to wait for postgresql
+      interval : 10s
+      timeout : 10s
+      retries : 5
+    networks:
+      - dbmate-network
+
+volumes:
+  pg15-volume-database:
+
+networks:
+  dbmate-network:

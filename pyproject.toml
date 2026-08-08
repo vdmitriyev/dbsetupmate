@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbmate"
+description = "`dbmate` overtakes a role of a database mate, whose purpose is to create and maintain database schemas and users"
+version = "0.0.1"
+readme = "README.md"
+authors = [
+  {name = "vdmitriyev"}
+]
+maintainers = [
+  {name = "vdmitriyev"}
+]
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "python-dotenv>=1.0.0",
+    "typing-extensions>=4.0.0",
+    "psycopg2-binary>=2.9.10"
+]
+
+[project.scripts]
+dbmate = "dbmate.cli:app"
+
+[project.urls]
+
+homepage = "https://github.com/vdmitriyev/dbmate"
+changelog = "https://github.com/vdmitriyev/dbmate/blob/main/HISTORY.rst"
+repository = "https://github.com/vdmitriyev/dbmate.git"
+documentation = "https://vdmitriyev.github.io/dbmate/"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dbmate*"]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
+    "isort>=8.0.1",
+    "pre-commit>=4.5.1",
+    "bandit>=1.9.4",
+    "pylint>=4.0.5",
+    "pytest>=9.0.3"
+]
+
+[tool.uv]
+exclude-newer = "8 days"

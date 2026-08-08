@@ -1,6 +1,8 @@
 # custom files
 .env
 *.env
+CLAUDE.md
+compose-claude.yaml
 
 # folders
 .venv/*
