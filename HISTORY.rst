@@ -2,6 +2,13 @@
 History
 =======
 
+0.4.1 (2026-08-09)
+------------------
+
+* ``task py:pytest-integration`` now runs the integration suite against every
+  PostgreSQL version (``database-15`` .. ``database-18``) on port ``5432`` and fails
+  if any version fails, instead of only reaching one server on port ``5415``.
+
 0.4.0 (2026-08-09)
 ------------------
 

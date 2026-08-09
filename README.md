@@ -42,9 +42,8 @@ subclass of `DBMateException`, never a `bool`.
 ## Tests
 
 ```bash
-task py:pytest                                       # unit tests, no database needed
-docker compose -f compose-tests.yaml up -d database-15
-POSTGRESQL_DB_HOST_PORT=5415 pytest -m integration   # against a real server
+task py:pytest              # unit tests, no database needed
+task py:pytest-integration  # against live PostgreSQL 15..18 (see compose-tests.yaml)
 ```
 
 ## License

@@ -153,11 +153,24 @@ tasks:
       - pytest
 
   pytest-integration:
-    desc: runs integration tests
+    desc: runs integration tests against every PostgreSQL version on the Docker network (database-15..18)
     silent: true
     deps: [check-virtualenv]
-    env:
-      POSTGRESQL_DB_HOST_PORT: 5415
+    vars:
+      DB_HOSTS: '{{.DB_HOSTS | default "database-15 database-16 database-17 database-18"}}'
     cmds:
       - echo "running integration tests"
-      - pytest -m integration
+      - |
+        failed=""
+        for db in {{.DB_HOSTS}}; do
+          echo "=== $db ==="
+          # Each server exposes port 5432 by its service name on the Docker network;
+          # credentials come from .env (POSTGRESQL_ADMIN_* etc.).
+          if ! POSTGRESQL_DB_HOST="$db" POSTGRESQL_DB_HOST_PORT=5432 pytest -m integration; then
+            failed="$failed $db"
+          fi
+        done
+        if [ -n "$failed" ]; then
+          echo "integration tests FAILED on:$failed"
+          exit 1
+        fi
