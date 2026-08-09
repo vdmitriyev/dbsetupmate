@@ -44,9 +44,10 @@ def _admin(config, database=None):
 def _drop_everything(config):
     """Removes anything a previous run may have left behind, ignoring failures."""
 
-    names = [f'DROP DATABASE IF EXISTS "{name}"' for name in (DB_NAME, config.demo_db)]
+    names = [f'DROP DATABASE IF EXISTS "{name}"' for name in (DB_NAME, config.shared_db)]
     names += [
-        f'DROP ROLE IF EXISTS "{role}"' for role in (DB_USER, DB_NAME, READONLY_USER, config.demo_user, config.demo_db)
+        f'DROP ROLE IF EXISTS "{role}"'
+        for role in (DB_USER, DB_NAME, READONLY_USER, config.shared_user, config.shared_db)
     ]
 
     for statement in names:
@@ -77,21 +78,21 @@ def live_config_fixture():
 @pytest.fixture(name="mate", scope="module")
 def mate_fixture(live_config):
     mate = PostgresMate(live_config)
-    mate.create_demo_db()
+    mate.create_shared_db()
 
     return mate
 
 
-def test_the_demo_database_is_created(mate, live_config):
-    assert mate.database_exists(live_config.demo_db) is True
-    assert mate.user_exists(live_config.demo_user) is True
+def test_the_shared_database_is_created(mate, live_config):
+    assert mate.database_exists(live_config.shared_db) is True
+    assert mate.user_exists(live_config.shared_user) is True
 
 
 def test_create_db_end_to_end(mate):
     created = mate.create_db(DB_NAME, DB_USER, DB_PASSWORD)
 
     assert created.database == DB_NAME
-    assert created.granted_demo_access is True
+    assert created.granted_shared_access is True
     assert mate.database_exists(DB_NAME) is True
     assert mate.user_exists(DB_USER) is True
 
@@ -118,31 +119,34 @@ def test_show_next_db_name_continues_after_what_already_exists(live_config):
     assert (names.database, names.order) == ("dbmate_it_db_02", 2)
 
 
-def test_a_readonly_user_can_read_the_demo_database(mate, live_config):
+def test_a_readonly_user_can_read_the_shared_database(mate, live_config):
     with connect(
-        live_config, database=live_config.demo_db, user=live_config.demo_user, password=live_config.demo_password
+        live_config,
+        database=live_config.shared_db,
+        user=live_config.shared_user,
+        password=live_config.shared_password,
     ) as cursor:
         cursor.execute("CREATE TABLE IF NOT EXISTS shared_data (id integer);")
         cursor.execute("INSERT INTO shared_data VALUES (42);")
 
     mate.create_user_readonly(READONLY_USER, READONLY_PASSWORD)
 
-    with connect(live_config, database=live_config.demo_db, user=READONLY_USER, password=READONLY_PASSWORD) as cursor:
+    with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD) as cursor:
         cursor.execute("SELECT id FROM shared_data;")
 
         assert cursor.fetchone()[0] == 42
 
 
-def test_a_readonly_user_cannot_write_to_the_demo_database(live_config):
+def test_a_readonly_user_cannot_write_to_the_shared_database(live_config):
     # The translated exception is raised when the block exits, so pytest.raises wraps it.
     with pytest.raises(InsufficientPrivilegeException):
         with connect(
-            live_config, database=live_config.demo_db, user=READONLY_USER, password=READONLY_PASSWORD
+            live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD
         ) as cursor:
             cursor.execute("INSERT INTO shared_data VALUES (43);")
 
 
 def test_a_wrong_password_is_reported_as_a_connection_error(live_config):
     with pytest.raises(DBConnectionException):
-        with connect(live_config, database=live_config.demo_db, user=DB_USER, password="wrong"):
+        with connect(live_config, database=live_config.shared_db, user=DB_USER, password="wrong"):
             pass

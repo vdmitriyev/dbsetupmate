@@ -2,6 +2,29 @@
 History
 =======
 
+0.4.0 (2026-08-09)
+------------------
+
+* **Breaking:** the "demo" database is now the **shared** database - a database other users
+  of the server read from, not a throwaway teaching one. Everything named after it was
+  renamed. There are no aliases and no environment fallbacks for the old names:
+
+  * environment: ``POSTGRESQL_DEMO_*`` -> ``POSTGRESQL_SHARED_*`` (``_DB``, ``_USER``,
+    ``_PASSWORD``, ``_USER_READONLY``, ``_USER_READONLY_PASSWORD``)
+  * CLI: ``db create-demo-db`` -> ``db create-shared-db``;
+    ``create-db --skip-demo-access`` -> ``--skip-shared-access``
+  * API: ``create_demo_db`` -> ``create_shared_db``,
+    ``PostgresMate.harden_demo_schema`` -> ``harden_shared_schema``,
+    ``create_db(grant_demo_access=...)`` -> ``grant_shared_access``,
+    ``CreatedDatabase.granted_demo_access`` -> ``granted_shared_access``
+  * ``PostgreSQLConfig`` fields: ``demo_db``, ``demo_user``, ``demo_password``,
+    ``demo_user_readonly``, ``demo_user_readonly_password`` -> ``shared_*``
+
+* **Breaking:** the default identifiers changed with them: ``dbmate_db_demo`` ->
+  ``dbmate_db_shared``, ``dbmate_user_demo`` -> ``dbmate_user_shared``,
+  ``dbmate_user_demo_ro`` -> ``dbmate_user_shared_ro``.
+
+
 0.3.0 (2026-08-09)
 ------------------
 

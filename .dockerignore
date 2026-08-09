@@ -12,6 +12,7 @@ temp/*
 data/*
 *-data/*
 data-*/*
+.claude/*
 
 # extentions
 *.env

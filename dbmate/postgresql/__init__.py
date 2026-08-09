@@ -11,7 +11,7 @@ from dbmate.postgresql.configs import PostgreSQLConfig
 from dbmate.postgresql.connection import connect
 from dbmate.postgresql.functions import (
     create_db,
-    create_demo_db,
+    create_shared_db,
     create_user_readonly,
     show_next_db_name,
 )
@@ -27,7 +27,7 @@ __all__ = [
     "connect",
     "normalize_identifier",
     "create_db",
-    "create_demo_db",
+    "create_shared_db",
     "create_user_readonly",
     "show_next_db_name",
 ]

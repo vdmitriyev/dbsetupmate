@@ -71,5 +71,7 @@ def test_the_old_function_names_are_gone():
         "create_readonly_user",
         "init_demo_database",
         "next_database_names",
+        # Renamed when the "demo" database became the "shared" database.
+        "create_demo_db",
     ]:
         assert not hasattr(functions, removed), removed

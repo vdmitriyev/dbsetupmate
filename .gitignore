@@ -9,14 +9,12 @@ compose-claude.yaml
 .dvenv/*
 temp/*
 data/*
-*-data/*
 data-*/*
+*-data/*
 configs/*
 .configs/*
-src/.configs/*
 .logs/*
-src/.logs/*
-
+.claude/*
 
 # extensions
 *.csv

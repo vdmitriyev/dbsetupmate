@@ -151,3 +151,13 @@ tasks:
     cmds:
       - echo "running pytest"
       - pytest
+
+  pytest-integration:
+    desc: runs integration tests
+    silent: true
+    deps: [check-virtualenv]
+    env:
+      POSTGRESQL_DB_HOST_PORT: 5415
+    cmds:
+      - echo "running integration tests"
+      - pytest -m integration

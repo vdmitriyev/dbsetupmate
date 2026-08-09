@@ -124,7 +124,7 @@ class PostgresMate:
         db_user: str,
         db_password: str,
         *,
-        grant_demo_access: bool = True,
+        grant_shared_access: bool = True,
     ) -> CreatedDatabase:
         """Creates a database, its owning group role and a login role for it.
 
@@ -132,8 +132,8 @@ class PostgresMate:
             db_name (str): name of the new database, also used for the owning group role
             db_user (str): name of the login role that owns the database
             db_password (str): password for the login role
-            grant_demo_access (bool): also grant the new role read-only access to
-                the shared demo database
+            grant_shared_access (bool): also grant the new role read-only access to
+                the shared database
 
         Returns:
             CreatedDatabase: what was created
@@ -194,11 +194,11 @@ class PostgresMate:
                 None,
             ),
         ]
-        if grant_demo_access:
+        if grant_shared_access:
             database_statements.append(
                 (
-                    sql.SQL("GRANT CONNECT ON DATABASE {demo} TO {role}").format(
-                        demo=sql.Identifier(self.config.demo_db), role=sql.Identifier(db_user)
+                    sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
+                        shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(db_user)
                     ),
                     None,
                 )
@@ -216,8 +216,8 @@ class PostgresMate:
                 )
             ]
             planned += self._public_schema_statements(db_name, db_user)
-            if grant_demo_access:
-                planned += self._demo_readonly_statements(db_user)
+            if grant_shared_access:
+                planned += self._shared_readonly_statements(db_user)
             # Borrow a cursor purely so the statements render as readable SQL.
             with self._admin_connection() as cursor:
                 self._announce(planned, cursor)
@@ -225,7 +225,7 @@ class PostgresMate:
                 database=db_name,
                 owner_role=db_name,
                 login_role=db_user,
-                granted_demo_access=False,
+                granted_shared_access=False,
                 dry_run=True,
             )
 
@@ -260,14 +260,14 @@ class PostgresMate:
             )
         self.grant_public_schema_rights(db_name, db_user)
 
-        if grant_demo_access:
-            self._grant_demo_readonly(db_user)
+        if grant_shared_access:
+            self._grant_shared_readonly(db_user)
 
         return CreatedDatabase(
             database=db_name,
             owner_role=db_name,
             login_role=db_user,
-            granted_demo_access=grant_demo_access,
+            granted_shared_access=grant_shared_access,
         )
 
     def grant_public_schema_rights(self, db_name: str, db_user: str) -> None:
@@ -285,13 +285,13 @@ class PostgresMate:
             self._execute_all(cursor, self._public_schema_statements(db_name, db_user))
 
     def create_user_readonly(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
-        """Creates a role with read-only access to the shared demo database.
+        """Creates a role with read-only access to the shared database.
 
         Args:
             user_name (str, optional): role to create. Defaults to the configured
-                ``POSTGRESQL_DEMO_USER_READONLY``.
+                ``POSTGRESQL_SHARED_USER_READONLY``.
             password (str, optional): its password. Defaults to the configured
-                ``POSTGRESQL_DEMO_USER_READONLY_PASSWORD``.
+                ``POSTGRESQL_SHARED_USER_READONLY_PASSWORD``.
 
         Returns:
             str: the normalised role name
@@ -301,8 +301,8 @@ class PostgresMate:
             DBMateException: for any other failure
         """
 
-        user_name = normalize_identifier(user_name or self.config.demo_user_readonly, "role")
-        password = password if password is not None else self.config.demo_user_readonly_password
+        user_name = normalize_identifier(user_name or self.config.shared_user_readonly, "role")
+        password = password if password is not None else self.config.shared_user_readonly_password
         _require_password(password, user_name)
 
         statements: List[Statement] = [
@@ -313,8 +313,8 @@ class PostgresMate:
                 (password,),
             ),
             (
-                sql.SQL("GRANT CONNECT ON DATABASE {demo} TO {role}").format(
-                    demo=sql.Identifier(self.config.demo_db), role=sql.Identifier(user_name)
+                sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
+                    shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(user_name)
                 ),
                 None,
             ),
@@ -323,13 +323,13 @@ class PostgresMate:
         with self._admin_connection() as cursor:
             self._execute_all(cursor, statements)
 
-        self._grant_demo_readonly(user_name)
+        self._grant_shared_readonly(user_name)
         logger.info("Read-only role '%s' was created", user_name)
 
         return user_name
 
-    def harden_demo_schema(self) -> None:
-        """Stops everyone but the demo owner from creating objects in the demo schema."""
+    def harden_shared_schema(self) -> None:
+        """Stops everyone but the shared owner from creating objects in the shared schema."""
 
         statements: List[Statement] = [
             (
@@ -340,34 +340,34 @@ class PostgresMate:
             ),
             (
                 sql.SQL("GRANT CREATE ON SCHEMA {schema} TO {role}").format(
-                    schema=PUBLIC_SCHEMA, role=sql.Identifier(self.config.demo_user)
+                    schema=PUBLIC_SCHEMA, role=sql.Identifier(self.config.shared_user)
                 ),
                 None,
             ),
         ]
 
-        with self._admin_connection(database=self.config.demo_db) as cursor:
+        with self._admin_connection(database=self.config.shared_db) as cursor:
             self._execute_all(cursor, statements)
 
-    def create_demo_db(self) -> CreatedDatabase:
-        """Creates the shared demo database and its owner, then hardens its schema.
+    def create_shared_db(self) -> CreatedDatabase:
+        """Creates the shared database and its owner, then hardens its schema.
 
-        Bootstrapping the demo database is deliberately not routed through
-        :meth:`create_db` with the demo grants enabled - that would try to
-        grant the demo database to itself while creating it.
+        Bootstrapping the shared database is deliberately not routed through
+        :meth:`create_db` with the shared grants enabled - that would try to
+        grant the shared database to itself while creating it.
 
         Returns:
             CreatedDatabase: what was created
         """
 
         created = self.create_db(
-            db_name=self.config.demo_db,
-            db_user=self.config.demo_user,
-            db_password=self.config.demo_password,
-            grant_demo_access=False,
+            db_name=self.config.shared_db,
+            db_user=self.config.shared_user,
+            db_password=self.config.shared_password,
+            grant_shared_access=False,
         )
-        self.harden_demo_schema()
-        logger.info("Demo database '%s' was initialised", self.config.demo_db)
+        self.harden_shared_schema()
+        logger.info("Shared database '%s' was initialised", self.config.shared_db)
 
         return created
 
@@ -423,7 +423,7 @@ class PostgresMate:
         ]
 
     @staticmethod
-    def _demo_readonly_statements(role: str) -> List[Statement]:
+    def _shared_readonly_statements(role: str) -> List[Statement]:
         return [
             (
                 sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO {role}").format(
@@ -439,11 +439,11 @@ class PostgresMate:
             ),
         ]
 
-    def _grant_demo_readonly(self, role: str) -> None:
-        """Grants SELECT on the demo schema. Only its owner may do this."""
+    def _grant_shared_readonly(self, role: str) -> None:
+        """Grants SELECT on the shared schema. Only its owner may do this."""
 
-        with self._connection(self.config.demo_db, self.config.demo_user, self.config.demo_password) as cursor:
-            self._execute_all(cursor, self._demo_readonly_statements(role))
+        with self._connection(self.config.shared_db, self.config.shared_user, self.config.shared_password) as cursor:
+            self._execute_all(cursor, self._shared_readonly_statements(role))
 
     def _drop_roles_quietly(self, roles: Sequence[str]) -> None:
         """Best effort cleanup of roles this call created; never masks the original error."""

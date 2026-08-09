@@ -13,11 +13,11 @@ from dbmate.constants import (
     DEFAULT_DB_NAME,
     DEFAULT_DB_PORT,
     DEFAULT_DB_PREFIX,
-    DEFAULT_DEMO_DB,
-    DEFAULT_DEMO_PASSWORD,
-    DEFAULT_DEMO_USER,
-    DEFAULT_DEMO_USER_READONLY,
-    DEFAULT_DEMO_USER_READONLY_PASSWORD,
+    DEFAULT_SHARED_DB,
+    DEFAULT_SHARED_PASSWORD,
+    DEFAULT_SHARED_USER,
+    DEFAULT_SHARED_USER_READONLY,
+    DEFAULT_SHARED_USER_READONLY_PASSWORD,
     DEFAULT_USER_PREFIX,
 )
 from dbmate.exceptions import DBMateException
@@ -47,12 +47,12 @@ class PostgreSQLConfig:  # pylint: disable=too-many-instance-attributes
     admin_user: str = DEFAULT_ADMIN_USER
     admin_password: str = field(default=DEFAULT_ADMIN_PASSWORD, repr=False)
 
-    # shared read-only "demo" database
-    demo_db: str = DEFAULT_DEMO_DB
-    demo_user: str = DEFAULT_DEMO_USER
-    demo_password: str = field(default=DEFAULT_DEMO_PASSWORD, repr=False)
-    demo_user_readonly: str = DEFAULT_DEMO_USER_READONLY
-    demo_user_readonly_password: str = field(default=DEFAULT_DEMO_USER_READONLY_PASSWORD, repr=False)
+    # the shared database every other user gets read-only access to
+    shared_db: str = DEFAULT_SHARED_DB
+    shared_user: str = DEFAULT_SHARED_USER
+    shared_password: str = field(default=DEFAULT_SHARED_PASSWORD, repr=False)
+    shared_user_readonly: str = DEFAULT_SHARED_USER_READONLY
+    shared_user_readonly_password: str = field(default=DEFAULT_SHARED_USER_READONLY_PASSWORD, repr=False)
 
     # naming of auto-generated databases and users
     db_prefix: str = DEFAULT_DB_PREFIX
@@ -98,12 +98,12 @@ class PostgreSQLConfig:  # pylint: disable=too-many-instance-attributes
             database=_read(env, "POSTGRESQL_DB_NAME", DEFAULT_DB_NAME),
             admin_user=_read(env, "POSTGRESQL_ADMIN_USER", DEFAULT_ADMIN_USER),
             admin_password=_read(env, "POSTGRESQL_ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD),
-            demo_db=_read(env, "POSTGRESQL_DEMO_DB", DEFAULT_DEMO_DB),
-            demo_user=_read(env, "POSTGRESQL_DEMO_USER", DEFAULT_DEMO_USER),
-            demo_password=_read(env, "POSTGRESQL_DEMO_PASSWORD", DEFAULT_DEMO_PASSWORD),
-            demo_user_readonly=_read(env, "POSTGRESQL_DEMO_USER_READONLY", DEFAULT_DEMO_USER_READONLY),
-            demo_user_readonly_password=_read(
-                env, "POSTGRESQL_DEMO_USER_READONLY_PASSWORD", DEFAULT_DEMO_USER_READONLY_PASSWORD
+            shared_db=_read(env, "POSTGRESQL_SHARED_DB", DEFAULT_SHARED_DB),
+            shared_user=_read(env, "POSTGRESQL_SHARED_USER", DEFAULT_SHARED_USER),
+            shared_password=_read(env, "POSTGRESQL_SHARED_PASSWORD", DEFAULT_SHARED_PASSWORD),
+            shared_user_readonly=_read(env, "POSTGRESQL_SHARED_USER_READONLY", DEFAULT_SHARED_USER_READONLY),
+            shared_user_readonly_password=_read(
+                env, "POSTGRESQL_SHARED_USER_READONLY_PASSWORD", DEFAULT_SHARED_USER_READONLY_PASSWORD
             ),
             db_prefix=_read(env, "POSTGRESQL_DB_PREFIX", DEFAULT_DB_PREFIX),
             user_prefix=_read(env, "POSTGRESQL_USER_PREFIX", DEFAULT_USER_PREFIX),

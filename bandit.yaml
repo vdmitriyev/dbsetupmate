@@ -1,6 +1,7 @@
 exclude_dirs:
   - "tests"
   - ".venv"
+  - ".dvenv"
 skips:
   - B311
   - B101

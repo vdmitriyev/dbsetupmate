@@ -2,7 +2,7 @@ version: '3'
 
 vars:
   COMPOSE_FILE: compose-tests.yaml
-  NETWORK_NAME: "dbmate-network"
+  NETWORK_NAME: "dbmate_dbmate-network"
 
 tasks:
 
@@ -13,7 +13,7 @@ tasks:
       - |
         echo {{.NETWORK_NAME}}
         for db in database-15 database-16 database-17 database-18; do
-          if docker run --rm --network {{.NETWORK_NAME}} curlimages/curl nc -z -w 3 $db 5432 > /dev/null 2>&1; then
+          if docker run --rm --network {{.NETWORK_NAME}} postgres:alpine pg_isready -h $db -p 5432 > /dev/null 2>&1; then
             echo "$db:5432 -> UP"
           else
             echo "$db:5432 -> DOWN"

@@ -13,7 +13,7 @@ def test_defaults_when_the_environment_is_empty():
     assert config.port == 5432
     assert config.database == "postgres"
     assert config.admin_user == "postgres"
-    assert config.demo_db == "dbmate_db_demo"
+    assert config.shared_db == "dbmate_db_shared"
     assert config.db_prefix == "dbmate_db"
 
 
@@ -25,11 +25,11 @@ def test_reads_every_setting_from_the_environment():
             "POSTGRESQL_DB_NAME": "maintenance",
             "POSTGRESQL_ADMIN_USER": "root",
             "POSTGRESQL_ADMIN_PASSWORD": "root-secret",
-            "POSTGRESQL_DEMO_DB": "demo",
-            "POSTGRESQL_DEMO_USER": "demo_owner",
-            "POSTGRESQL_DEMO_PASSWORD": "demo-secret",
-            "POSTGRESQL_DEMO_USER_READONLY": "demo_ro",
-            "POSTGRESQL_DEMO_USER_READONLY_PASSWORD": "ro-secret",
+            "POSTGRESQL_SHARED_DB": "shared",
+            "POSTGRESQL_SHARED_USER": "shared_owner",
+            "POSTGRESQL_SHARED_PASSWORD": "shared-secret",
+            "POSTGRESQL_SHARED_USER_READONLY": "shared_ro",
+            "POSTGRESQL_SHARED_USER_READONLY_PASSWORD": "ro-secret",
             "POSTGRESQL_DB_PREFIX": "course_db",
             "POSTGRESQL_USER_PREFIX": "course_user",
             "POSTGRESQL_CONNECT_TIMEOUT": "11",
@@ -41,9 +41,9 @@ def test_reads_every_setting_from_the_environment():
     assert config.database == "maintenance"
     assert config.admin_user == "root"
     assert config.admin_password == "root-secret"
-    assert config.demo_db == "demo"
-    assert config.demo_user_readonly == "demo_ro"
-    assert config.demo_user_readonly_password == "ro-secret"
+    assert config.shared_db == "shared"
+    assert config.shared_user_readonly == "shared_ro"
+    assert config.shared_user_readonly_password == "ro-secret"
     assert config.db_prefix == "course_db"
     assert config.user_prefix == "course_user"
     assert config.connect_timeout == 11
@@ -83,13 +83,13 @@ def test_the_environment_is_read_when_from_env_is_called(monkeypatch):
 def test_repr_does_not_leak_passwords():
     config = PostgreSQLConfig(
         admin_password="admin-secret",
-        demo_password="demo-secret",
-        demo_user_readonly_password="ro-secret",
+        shared_password="shared-secret",
+        shared_user_readonly_password="ro-secret",
     )
     rendered = repr(config)
 
     assert "admin-secret" not in rendered
-    assert "demo-secret" not in rendered
+    assert "shared-secret" not in rendered
     assert "ro-secret" not in rendered
     assert "localhost" in rendered
 

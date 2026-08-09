@@ -22,7 +22,7 @@ def create_db(  # pylint: disable=too-many-arguments
     *,
     config: Optional[PostgreSQLConfig] = None,
     dry_run: bool = False,
-    grant_demo_access: bool = True,
+    grant_shared_access: bool = True,
 ) -> CreatedDatabase:
     """Creates a database, its owning group role and a login role for it.
 
@@ -34,7 +34,7 @@ def create_db(  # pylint: disable=too-many-arguments
         db_password (str): password for the login role
         config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
         dry_run (bool): report the statements instead of executing them
-        grant_demo_access (bool): also grant read-only access to the demo database
+        grant_shared_access (bool): also grant read-only access to the shared database
 
     Returns:
         CreatedDatabase: what was created
@@ -44,7 +44,7 @@ def create_db(  # pylint: disable=too-many-arguments
         db_name=db_name,
         db_user=db_user,
         db_password=db_password,
-        grant_demo_access=grant_demo_access,
+        grant_shared_access=grant_shared_access,
     )
 
 
@@ -55,7 +55,7 @@ def create_user_readonly(
     config: Optional[PostgreSQLConfig] = None,
     dry_run: bool = False,
 ) -> str:
-    """Creates a role with read-only access to the shared demo database.
+    """Creates a role with read-only access to the shared database.
 
     See :meth:`PostgresMate.create_user_readonly`.
 
@@ -72,14 +72,14 @@ def create_user_readonly(
     return PostgresMate(config, dry_run=dry_run).create_user_readonly(user_name=user_name, password=password)
 
 
-def create_demo_db(
+def create_shared_db(
     *,
     config: Optional[PostgreSQLConfig] = None,
     dry_run: bool = False,
 ) -> CreatedDatabase:
-    """Creates the shared demo database and hardens its schema.
+    """Creates the shared database and hardens its schema.
 
-    See :meth:`PostgresMate.create_demo_db`.
+    See :meth:`PostgresMate.create_shared_db`.
 
     Args:
         config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
@@ -89,7 +89,7 @@ def create_demo_db(
         CreatedDatabase: what was created
     """
 
-    return PostgresMate(config, dry_run=dry_run).create_demo_db()
+    return PostgresMate(config, dry_run=dry_run).create_shared_db()
 
 
 def show_next_db_name(*, config: Optional[PostgreSQLConfig] = None) -> DatabaseNames:

@@ -95,7 +95,7 @@ def test_create_db_returns_what_it_created(mate):
     assert created.database == "course_db_01"
     assert created.owner_role == "course_db_01"
     assert created.login_role == "course_user_01"
-    assert created.granted_demo_access is True
+    assert created.granted_shared_access is True
     assert created.dry_run is False
 
 
@@ -157,19 +157,19 @@ def test_schema_rights_are_granted_from_inside_the_new_database(mate, server):
     assert grant_all.user == "course_user_01"
 
 
-def test_demo_grants_run_as_the_demo_owner(mate, server):
+def test_shared_grants_run_as_the_shared_owner(mate, server):
     mate.create_db("course_db_01", "course_user_01", "s3cret")
 
-    demo_grants = [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
+    shared_grants = [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
 
-    assert demo_grants
-    assert all(item.database == "demo_db" and item.user == "demo_user" for item in demo_grants)
+    assert shared_grants
+    assert all(item.database == "shared_db" and item.user == "shared_user" for item in shared_grants)
 
 
-def test_demo_access_can_be_skipped(mate, server):
-    created = mate.create_db("course_db_01", "course_user_01", "s3cret", grant_demo_access=False)
+def test_shared_access_can_be_skipped(mate, server):
+    created = mate.create_db("course_db_01", "course_user_01", "s3cret", grant_shared_access=False)
 
-    assert created.granted_demo_access is False
+    assert created.granted_shared_access is False
     assert not [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
     assert not [item for item in server.executed if "GRANT CONNECT ON DATABASE" in item.text]
 
@@ -264,7 +264,7 @@ def test_a_dry_run_executes_no_ddl(config, server):
     assert server.ddl() == []
     assert created.dry_run is True
     assert created.database == "course_db_01"
-    assert created.granted_demo_access is False
+    assert created.granted_shared_access is False
 
 
 def test_a_dry_run_still_runs_the_read_only_checks(config, server):
@@ -291,14 +291,14 @@ def test_a_dry_run_readonly_user_executes_no_ddl(config, server):
 
 
 # ----------------------------------------------------------------------
-# read-only user, demo database
+# read-only user, shared database
 # ----------------------------------------------------------------------
 
 
 def test_create_user_readonly_defaults_to_the_configured_role(mate, server):
     created_user = mate.create_user_readonly()
 
-    assert created_user == "demo_ro"
+    assert created_user == "shared_ro"
     assert [item for item in server.executed if "LOGIN ENCRYPTED PASSWORD" in item.text][0].params == ("ro-secret",)
 
 
@@ -311,37 +311,37 @@ def test_create_user_readonly_grants_connect_and_select(mate, server):
     assert any("ALTER DEFAULT PRIVILEGES" in item for item in ddl)
 
 
-def test_create_user_readonly_does_not_harden_the_demo_schema(mate, server):
-    # Hardening is part of bootstrapping the demo database, not of adding a reader.
+def test_create_user_readonly_does_not_harden_the_shared_schema(mate, server):
+    # Hardening is part of bootstrapping the shared database, not of adding a reader.
     mate.create_user_readonly("reader", "reader-secret")
 
     assert not [item for item in server.executed if "REVOKE CREATE ON SCHEMA" in item.text]
 
 
-def test_harden_demo_schema_revokes_create_from_public(mate, server):
-    mate.harden_demo_schema()
+def test_harden_shared_schema_revokes_create_from_public(mate, server):
+    mate.harden_shared_schema()
 
     ddl = server.ddl()
     assert len(ddl) == 2
     assert "REVOKE CREATE ON SCHEMA" in ddl[0].text and "SQL('PUBLIC')" in ddl[0].text
     assert "GRANT CREATE ON SCHEMA" in ddl[1].text
-    assert all(item.database == "demo_db" for item in ddl)
+    assert all(item.database == "shared_db" for item in ddl)
 
 
-def test_create_demo_db_does_not_grant_the_demo_database_to_itself(mate, server):
-    created = mate.create_demo_db()
+def test_create_shared_db_does_not_grant_the_shared_database_to_itself(mate, server):
+    created = mate.create_shared_db()
 
-    assert created.database == "demo_db"
+    assert created.database == "shared_db"
     assert not [item for item in server.executed if "GRANT CONNECT ON DATABASE" in item.text]
     assert [item for item in server.executed if "REVOKE CREATE ON SCHEMA" in item.text]
 
 
-def test_create_demo_db_never_connects_as_the_demo_user_before_it_exists(mate, server):
-    mate.create_demo_db()
+def test_create_shared_db_never_connects_as_the_shared_user_before_it_exists(mate, server):
+    mate.create_shared_db()
 
-    demo_user_connections = [item for item in server.connections if item.user == "demo_user"]
+    shared_user_connections = [item for item in server.connections if item.user == "shared_user"]
     # Only the connection the new owner makes to its own database.
-    assert all(item.database == "demo_db" for item in demo_user_connections)
+    assert all(item.database == "shared_db" for item in shared_user_connections)
 
 
 def test_grant_public_schema_rights_targets_the_new_database(mate, server):

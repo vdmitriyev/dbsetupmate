@@ -26,12 +26,12 @@ class CreatedDatabase:
         database (str): the normalised database name
         owner_role (str): the group role owning the database (NOLOGIN)
         login_role (str): the role able to log in
-        granted_demo_access (bool): whether read-only access to the demo database was granted
+        granted_shared_access (bool): whether read-only access to the shared database was granted
         dry_run (bool): ``True`` when nothing was executed against the server
     """
 
     database: str
     owner_role: str
     login_role: str
-    granted_demo_access: bool = False
+    granted_shared_access: bool = False
     dry_run: bool = False

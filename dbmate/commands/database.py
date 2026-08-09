@@ -50,10 +50,10 @@ def create_db(
         prompt=True,
         hide_input=True,
     ),
-    skip_demo_access: bool = typer.Option(
+    skip_shared_access: bool = typer.Option(
         False,
-        "--skip-demo-access",
-        help="Do not grant the new user read-only access to the demo database.",
+        "--skip-shared-access",
+        help="Do not grant the new user read-only access to the shared database.",
     ),
 ) -> None:
     """Create a new database together with its owner and login user."""
@@ -71,7 +71,7 @@ def create_db(
             db_name=new_db_name,
             db_user=new_db_user,
             db_password=new_db_password,
-            grant_demo_access=not skip_demo_access,
+            grant_shared_access=not skip_shared_access,
         )
 
     if created.dry_run:
@@ -81,18 +81,18 @@ def create_db(
     cprint(
         Text("✓", style="bold green"),
         f"Database '{created.database}' was created for user '{created.login_role}'"
-        + (" with demo access" if created.granted_demo_access else ""),
+        + (" with shared access" if created.granted_shared_access else ""),
     )
 
 
-@app.command("create-demo-db")
-def create_demo_db() -> None:
-    """Create the shared demo database and harden its public schema."""
+@app.command("create-shared-db")
+def create_shared_db() -> None:
+    """Create the shared database and harden its public schema."""
 
     with _reporting():
-        created = _mate().create_demo_db()
+        created = _mate().create_shared_db()
 
-    cprint(Text("✓", style="bold green"), f"Demo database '{created.database}' is ready")
+    cprint(Text("✓", style="bold green"), f"Shared database '{created.database}' is ready")
 
 
 @app.command("create-user-readonly")
@@ -100,15 +100,15 @@ def create_user_readonly(
     user_name: Optional[str] = typer.Option(
         None,
         "--user-name",
-        help="Role to create. Defaults to POSTGRESQL_DEMO_USER_READONLY.",
+        help="Role to create. Defaults to POSTGRESQL_SHARED_USER_READONLY.",
     ),
     password: Optional[str] = typer.Option(
         None,
         "--password",
-        help="Password for the role. Defaults to POSTGRESQL_DEMO_USER_READONLY_PASSWORD.",
+        help="Password for the role. Defaults to POSTGRESQL_SHARED_USER_READONLY_PASSWORD.",
     ),
 ) -> None:
-    """Create a user with read-only access to the demo database."""
+    """Create a user with read-only access to the shared database."""
 
     with _reporting():
         created_user = _mate().create_user_readonly(user_name=user_name, password=password)

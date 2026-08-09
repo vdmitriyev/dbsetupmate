@@ -21,11 +21,11 @@ DEFAULT_ADMIN_USER = "postgres"
 # The password fallbacks below are documented placeholders for a local sandbox,
 # not credentials: any real deployment sets the matching POSTGRESQL_* variable.
 DEFAULT_ADMIN_PASSWORD = "dbmate"  # nosec B105
-DEFAULT_DEMO_DB = "dbmate_db_demo"
-DEFAULT_DEMO_USER = "dbmate_user_demo"
-DEFAULT_DEMO_PASSWORD = "dbmate"  # nosec B105
-DEFAULT_DEMO_USER_READONLY = "dbmate_user_demo_ro"
-DEFAULT_DEMO_USER_READONLY_PASSWORD = "dbmate"  # nosec B105
+DEFAULT_SHARED_DB = "dbmate_db_shared"
+DEFAULT_SHARED_USER = "dbmate_user_shared"
+DEFAULT_SHARED_PASSWORD = "dbmate"  # nosec B105
+DEFAULT_SHARED_USER_READONLY = "dbmate_user_shared_ro"
+DEFAULT_SHARED_USER_READONLY_PASSWORD = "dbmate"  # nosec B105
 DEFAULT_DB_PREFIX = "dbmate_db"
 DEFAULT_USER_PREFIX = "dbmate_user"
 DEFAULT_CONNECT_TIMEOUT = 5
