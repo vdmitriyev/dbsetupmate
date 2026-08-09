@@ -10,10 +10,10 @@ Note:
 from dbmate.postgresql.configs import PostgreSQLConfig
 from dbmate.postgresql.connection import connect
 from dbmate.postgresql.functions import (
-    create_database,
-    create_readonly_user,
-    init_demo_database,
-    next_database_names,
+    create_db,
+    create_demo_db,
+    create_user_readonly,
+    show_next_db_name,
 )
 from dbmate.postgresql.identifiers import normalize_identifier
 from dbmate.postgresql.manager import PostgresMate
@@ -26,8 +26,8 @@ __all__ = [
     "DatabaseNames",
     "connect",
     "normalize_identifier",
-    "create_database",
-    "create_readonly_user",
-    "init_demo_database",
-    "next_database_names",
+    "create_db",
+    "create_demo_db",
+    "create_user_readonly",
+    "show_next_db_name",
 ]

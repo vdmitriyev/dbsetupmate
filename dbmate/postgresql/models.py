@@ -20,7 +20,7 @@ class DatabaseNames:
 
 @dataclass(frozen=True)
 class CreatedDatabase:
-    """What a call to ``create_database`` actually produced.
+    """What a call to ``create_db`` actually produced.
 
     Attributes:
         database (str): the normalised database name

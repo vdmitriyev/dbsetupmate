@@ -48,9 +48,9 @@ def test_the_subpackage_exposes_the_same_api():
 
 
 def test_the_convenience_functions_delegate_to_the_client(config, server):
-    from dbmate import create_database  # pylint: disable=import-outside-toplevel
+    from dbmate import create_db  # pylint: disable=import-outside-toplevel
 
-    created = create_database("course_db_01", "course_user_01", "s3cret", config=config)
+    created = create_db("course_db_01", "course_user_01", "s3cret", config=config)
 
     assert isinstance(created, CreatedDatabase)
     assert created.database == "course_db_01"
@@ -66,5 +66,10 @@ def test_the_old_function_names_are_gone():
         "new_postgresql_db_names",
         "init_postgresql_with_demo_user",
         "create_postgresql_readonly_user_for_demo_db",
+        # Renamed to line the library API up with the CLI command names.
+        "create_database",
+        "create_readonly_user",
+        "init_demo_database",
+        "next_database_names",
     ]:
         assert not hasattr(functions, removed), removed

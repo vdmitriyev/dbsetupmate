@@ -2,17 +2,18 @@ version: '3'
 
 vars:
   COMPOSE_FILE: compose-tests.yaml
+  NETWORK_NAME: "dbmate-network"
 
 tasks:
 
-  check-from-docker:
+  check-infra-status:
     desc: Check connectivity to databases by service name on port 5432 from inside Docker network
     silent: true
     cmds:
       - |
-        NETWORK=$(docker network ls --filter name=dbmate-network --format "{{.Name}}" | head -n 1)
-        for db in database-15 database-16 database-17 database-18 database-19; do
-          if docker run --rm --network $NETWORK curlimages/curl -s --connect-timeout 2 telnet://$db:5432 > /dev/null 2>&1; then
+        echo {{.NETWORK_NAME}}
+        for db in database-15 database-16 database-17 database-18; do
+          if docker run --rm --network {{.NETWORK_NAME}} curlimages/curl nc -z -w 3 $db 5432 > /dev/null 2>&1; then
             echo "$db:5432 -> UP"
           else
             echo "$db:5432 -> DOWN"

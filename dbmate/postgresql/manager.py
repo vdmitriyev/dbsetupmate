@@ -47,7 +47,7 @@ class PostgresMate:
 
     Example:
         >>> mate = PostgresMate()
-        >>> mate.create_database("course_db_01", "course_user_01", "s3cret")
+        >>> mate.create_db("course_db_01", "course_user_01", "s3cret")
     """
 
     def __init__(self, config: Optional[PostgreSQLConfig] = None, *, dry_run: bool = False) -> None:
@@ -86,7 +86,7 @@ class PostgresMate:
         with self._admin_connection() as cursor:
             return self._role_exists(cursor, name)
 
-    def next_database_names(self) -> DatabaseNames:
+    def show_next_db_name(self) -> DatabaseNames:
         """Derives the next free auto-generated database and user names.
 
         Looks at every database whose name starts with the configured prefix and
@@ -118,7 +118,7 @@ class PostgresMate:
     # provisioning
     # ------------------------------------------------------------------
 
-    def create_database(
+    def create_db(
         self,
         db_name: str,
         db_user: str,
@@ -284,7 +284,7 @@ class PostgresMate:
         with self._admin_connection(database=db_name) as cursor:
             self._execute_all(cursor, self._public_schema_statements(db_name, db_user))
 
-    def create_readonly_user(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
+    def create_user_readonly(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
         """Creates a role with read-only access to the shared demo database.
 
         Args:
@@ -349,18 +349,18 @@ class PostgresMate:
         with self._admin_connection(database=self.config.demo_db) as cursor:
             self._execute_all(cursor, statements)
 
-    def init_demo_database(self) -> CreatedDatabase:
+    def create_demo_db(self) -> CreatedDatabase:
         """Creates the shared demo database and its owner, then hardens its schema.
 
         Bootstrapping the demo database is deliberately not routed through
-        :meth:`create_database` with the demo grants enabled - that would try to
+        :meth:`create_db` with the demo grants enabled - that would try to
         grant the demo database to itself while creating it.
 
         Returns:
             CreatedDatabase: what was created
         """
 
-        created = self.create_database(
+        created = self.create_db(
             db_name=self.config.demo_db,
             db_user=self.config.demo_user,
             db_password=self.config.demo_password,

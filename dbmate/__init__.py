@@ -4,7 +4,7 @@ Beyond the ``dbmate`` command line interface, this package is usable as a librar
 
     >>> from dbmate import PostgresMate, PostgreSQLConfig
     >>> mate = PostgresMate(PostgreSQLConfig(host="db.internal", admin_password="..."))
-    >>> created = mate.create_database("course_db_01", "course_user_01", "s3cret")
+    >>> created = mate.create_db("course_db_01", "course_user_01", "s3cret")
 
 Every name listed in ``__all__`` is resolved lazily (PEP 562), so ``import dbmate``
 stays cheap and the submodules never have to import this module back.
@@ -19,10 +19,10 @@ _EXPORTS: Dict[str, str] = {
     "PostgreSQLConfig": "dbmate.postgresql.configs",
     "CreatedDatabase": "dbmate.postgresql.models",
     "DatabaseNames": "dbmate.postgresql.models",
-    "create_database": "dbmate.postgresql.functions",
-    "create_readonly_user": "dbmate.postgresql.functions",
-    "init_demo_database": "dbmate.postgresql.functions",
-    "next_database_names": "dbmate.postgresql.functions",
+    "create_db": "dbmate.postgresql.functions",
+    "create_demo_db": "dbmate.postgresql.functions",
+    "create_user_readonly": "dbmate.postgresql.functions",
+    "show_next_db_name": "dbmate.postgresql.functions",
     "DBMateException": "dbmate.exceptions",
     "DBConnectionException": "dbmate.exceptions",
     "DBUserAlreadyExistsException": "dbmate.exceptions",
@@ -72,10 +72,10 @@ if TYPE_CHECKING:  # pragma: no cover - for type checkers and IDEs only
     )
     from dbmate.postgresql.configs import PostgreSQLConfig
     from dbmate.postgresql.functions import (
-        create_database,
-        create_readonly_user,
-        init_demo_database,
-        next_database_names,
+        create_db,
+        create_demo_db,
+        create_user_readonly,
+        show_next_db_name,
     )
     from dbmate.postgresql.manager import PostgresMate
     from dbmate.postgresql.models import CreatedDatabase, DatabaseNames

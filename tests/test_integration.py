@@ -77,7 +77,7 @@ def live_config_fixture():
 @pytest.fixture(name="mate", scope="module")
 def mate_fixture(live_config):
     mate = PostgresMate(live_config)
-    mate.init_demo_database()
+    mate.create_demo_db()
 
     return mate
 
@@ -87,8 +87,8 @@ def test_the_demo_database_is_created(mate, live_config):
     assert mate.user_exists(live_config.demo_user) is True
 
 
-def test_create_database_end_to_end(mate):
-    created = mate.create_database(DB_NAME, DB_USER, DB_PASSWORD)
+def test_create_db_end_to_end(mate):
+    created = mate.create_db(DB_NAME, DB_USER, DB_PASSWORD)
 
     assert created.database == DB_NAME
     assert created.granted_demo_access is True
@@ -107,13 +107,13 @@ def test_the_new_user_owns_its_own_schema(live_config):
 
 def test_creating_the_same_database_twice_is_rejected(mate):
     with pytest.raises(DatabaseAlreadyExistsException):
-        mate.create_database(DB_NAME, DB_USER, DB_PASSWORD)
+        mate.create_db(DB_NAME, DB_USER, DB_PASSWORD)
 
 
-def test_next_names_continue_after_what_already_exists(live_config):
+def test_show_next_db_name_continues_after_what_already_exists(live_config):
     mate = PostgresMate(replace(live_config, db_prefix="dbmate_it_db", user_prefix="dbmate_it_user"))
 
-    names = mate.next_database_names()
+    names = mate.show_next_db_name()
 
     assert (names.database, names.order) == ("dbmate_it_db_02", 2)
 
@@ -125,7 +125,7 @@ def test_a_readonly_user_can_read_the_demo_database(mate, live_config):
         cursor.execute("CREATE TABLE IF NOT EXISTS shared_data (id integer);")
         cursor.execute("INSERT INTO shared_data VALUES (42);")
 
-    mate.create_readonly_user(READONLY_USER, READONLY_PASSWORD)
+    mate.create_user_readonly(READONLY_USER, READONLY_PASSWORD)
 
     with connect(live_config, database=live_config.demo_db, user=READONLY_USER, password=READONLY_PASSWORD) as cursor:
         cursor.execute("SELECT id FROM shared_data;")

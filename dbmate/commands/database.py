@@ -31,8 +31,8 @@ def _reporting() -> Iterator[None]:
         raise typer.Exit(code=1) from ex
 
 
-@app.command()
-def create(
+@app.command("create-db")
+def create_db(
     new_db_name: Optional[str] = typer.Option(
         None,
         "--new-db-name",
@@ -62,12 +62,12 @@ def create(
 
     with _reporting():
         if not new_db_name or not new_db_user:
-            names = mate.next_database_names()
+            names = mate.show_next_db_name()
             new_db_name = new_db_name or names.database
             new_db_user = new_db_user or names.user
             cprint("Generated names:", Text(f"{new_db_name} / {new_db_user}", style="bold blue"))
 
-        created = mate.create_database(
+        created = mate.create_db(
             db_name=new_db_name,
             db_user=new_db_user,
             db_password=new_db_password,
@@ -85,18 +85,18 @@ def create(
     )
 
 
-@app.command("init-demo")
-def init_demo() -> None:
+@app.command("create-demo-db")
+def create_demo_db() -> None:
     """Create the shared demo database and harden its public schema."""
 
     with _reporting():
-        created = _mate().init_demo_database()
+        created = _mate().create_demo_db()
 
     cprint(Text("✓", style="bold green"), f"Demo database '{created.database}' is ready")
 
 
-@app.command("create-readonly-user")
-def create_readonly_user(
+@app.command("create-user-readonly")
+def create_user_readonly(
     user_name: Optional[str] = typer.Option(
         None,
         "--user-name",
@@ -111,17 +111,16 @@ def create_readonly_user(
     """Create a user with read-only access to the demo database."""
 
     with _reporting():
-        created_user = _mate().create_readonly_user(user_name=user_name, password=password)
+        created_user = _mate().create_user_readonly(user_name=user_name, password=password)
 
     cprint(Text("✓", style="bold green"), f"Read-only user '{created_user}' is ready")
 
 
-@app.command("next-names")
-def next_names() -> None:
-    """Show the next free auto-generated database and user names."""
+@app.command("show-next-db-name")
+def show_next_db_name() -> None:
+    """Show the next free auto-generated database name."""
 
     with _reporting():
-        names = _mate().next_database_names()
+        names = _mate().show_next_db_name()
 
     cprint("Next database:", Text(names.database, style="bold blue"))
-    cprint("Next user:", Text(names.user, style="bold blue"))

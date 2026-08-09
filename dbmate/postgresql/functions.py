@@ -15,7 +15,7 @@ from dbmate.postgresql.manager import PostgresMate
 from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
 
 
-def create_database(  # pylint: disable=too-many-arguments
+def create_db(  # pylint: disable=too-many-arguments
     db_name: str,
     db_user: str,
     db_password: str,
@@ -26,7 +26,7 @@ def create_database(  # pylint: disable=too-many-arguments
 ) -> CreatedDatabase:
     """Creates a database, its owning group role and a login role for it.
 
-    See :meth:`PostgresMate.create_database`.
+    See :meth:`PostgresMate.create_db`.
 
     Args:
         db_name (str): name of the new database, also used for the owning group role
@@ -40,7 +40,7 @@ def create_database(  # pylint: disable=too-many-arguments
         CreatedDatabase: what was created
     """
 
-    return PostgresMate(config, dry_run=dry_run).create_database(
+    return PostgresMate(config, dry_run=dry_run).create_db(
         db_name=db_name,
         db_user=db_user,
         db_password=db_password,
@@ -48,7 +48,7 @@ def create_database(  # pylint: disable=too-many-arguments
     )
 
 
-def create_readonly_user(
+def create_user_readonly(
     user_name: Optional[str] = None,
     password: Optional[str] = None,
     *,
@@ -57,7 +57,7 @@ def create_readonly_user(
 ) -> str:
     """Creates a role with read-only access to the shared demo database.
 
-    See :meth:`PostgresMate.create_readonly_user`.
+    See :meth:`PostgresMate.create_user_readonly`.
 
     Args:
         user_name (str, optional): role to create. Defaults to the configured read-only user.
@@ -69,17 +69,17 @@ def create_readonly_user(
         str: the normalised role name
     """
 
-    return PostgresMate(config, dry_run=dry_run).create_readonly_user(user_name=user_name, password=password)
+    return PostgresMate(config, dry_run=dry_run).create_user_readonly(user_name=user_name, password=password)
 
 
-def init_demo_database(
+def create_demo_db(
     *,
     config: Optional[PostgreSQLConfig] = None,
     dry_run: bool = False,
 ) -> CreatedDatabase:
     """Creates the shared demo database and hardens its schema.
 
-    See :meth:`PostgresMate.init_demo_database`.
+    See :meth:`PostgresMate.create_demo_db`.
 
     Args:
         config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
@@ -89,13 +89,13 @@ def init_demo_database(
         CreatedDatabase: what was created
     """
 
-    return PostgresMate(config, dry_run=dry_run).init_demo_database()
+    return PostgresMate(config, dry_run=dry_run).create_demo_db()
 
 
-def next_database_names(*, config: Optional[PostgreSQLConfig] = None) -> DatabaseNames:
+def show_next_db_name(*, config: Optional[PostgreSQLConfig] = None) -> DatabaseNames:
     """Derives the next free auto-generated database and user names.
 
-    See :meth:`PostgresMate.next_database_names`.
+    See :meth:`PostgresMate.show_next_db_name`.
 
     Args:
         config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
@@ -104,4 +104,4 @@ def next_database_names(*, config: Optional[PostgreSQLConfig] = None) -> Databas
         DatabaseNames: the next free names and the number they are built from
     """
 
-    return PostgresMate(config).next_database_names()
+    return PostgresMate(config).show_next_db_name()
