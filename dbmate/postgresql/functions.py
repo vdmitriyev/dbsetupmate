@@ -1,372 +1,107 @@
-import traceback
-from typing import Tuple
+"""Module level convenience wrappers around :class:`PostgresMate`.
 
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+Use these when a single call is all you need; hold a
+:class:`~dbmate.postgresql.manager.PostgresMate` instead when you make several
+calls against the same configuration.
 
-import dbmate.constants as constants
-from dbmate.configs import logger
-from dbmate.postgresql.configs import database_config
+Every wrapper propagates :class:`~dbmate.exceptions.DBMateException` - none of
+them swallow errors.
+"""
 
+from typing import Optional
 
-def new_postgresql_db_names() -> Tuple[str, str, str]:
-    """Gets a new name for a database and a user.
-
-    Returns:
-        Tuple[str, str, str]: a new database name, a new username, a user "order"
-    """
-
-    new_db_name, new_db_user, new_db_user_order = None, None, None
-
-    # very simple method that simple takes the next int
-    # won't work if users/databases will be deleted randomly
-
-    sql_next_cnt = "SELECT count(*)+1 FROM pg_database WHERE datname LIKE %(prefix)s;"
-    pattern = f"%{constants.POSTGRESQL_DB_PREFIX}%"
-
-    connection = None
-    try:
-        connection = psycopg2.connect(
-            user=database_config["POSTGRESQL_ADMIN_USER"],
-            password=database_config["POSTGRESQL_ADMIN_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DB_NAME"],
-        )
-
-        cursor = connection.cursor()
-        cursor.execute(sql_next_cnt, {"prefix": pattern})
-        sql_next_row = cursor.fetchone()
-
-        new_db_user_order = sql_next_row[0]
-        new_db_name = "{0}_{1}".format(constants.POSTGRESQL_DB_PREFIX, str(sql_next_row[0]).zfill(2))
-        new_db_user = "{0}_{1}".format(constants.POSTGRESQL_USER_PREFIX, str(sql_next_row[0]).zfill(2))
-
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            logger.info("PostgreSQL connection was closed")
-        else:
-            logger.error("PostgreSQL connection is None")
-
-    return new_db_name, new_db_user, new_db_user_order
+from dbmate.postgresql.configs import PostgreSQLConfig
+from dbmate.postgresql.manager import PostgresMate
+from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
 
 
-def create_postgresql_db(db_name: str, db_user: str, db_password: str, verbose=True) -> bool:
-    """Creates a new database and a user in a PostgreSQL
+def create_database(  # pylint: disable=too-many-arguments
+    db_name: str,
+    db_user: str,
+    db_password: str,
+    *,
+    config: Optional[PostgreSQLConfig] = None,
+    dry_run: bool = False,
+    grant_demo_access: bool = True,
+) -> CreatedDatabase:
+    """Creates a database, its owning group role and a login role for it.
+
+    See :meth:`PostgresMate.create_database`.
 
     Args:
-        db_name (str): a name (and a role) of a new database
-        db_user (str): a admin user of a new database
-        db_password (str): a password of a new database user
-        verbose (bool, optional): _description_. Defaults to True.
+        db_name (str): name of the new database, also used for the owning group role
+        db_user (str): name of the login role that owns the database
+        db_password (str): password for the login role
+        config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
+        dry_run (bool): report the statements instead of executing them
+        grant_demo_access (bool): also grant read-only access to the demo database
 
     Returns:
-        bool: True if a database was created
+        CreatedDatabase: what was created
     """
 
-    is_created = False
-
-    sql_crt_role_01 = """CREATE ROLE {0} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN;""".format(db_name)
-    sql_crt_role_02 = (
-        """CREATE ROLE {0} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN ENCRYPTED PASSWORD '{1}';""".format(
-            db_user, db_password
-        )
+    return PostgresMate(config, dry_run=dry_run).create_database(
+        db_name=db_name,
+        db_user=db_user,
+        db_password=db_password,
+        grant_demo_access=grant_demo_access,
     )
 
-    sql_grant_01 = """GRANT {0} TO {1};""".format(db_name, db_user)
-    sql_grant_demo_01 = """GRANT CONNECT ON DATABASE {db_demo} TO {db_user}""".format(
-        db_demo=database_config["POSTGRESQL_DEMO_DB"], db_user=db_user
-    )
-    sql_crt_db = """CREATE DATABASE {0} WITH OWNER={1};""".format(db_name, db_user)
-    sql_revoke = """REVOKE ALL ON DATABASE {0} FROM public;""".format(db_name)
 
-    connection = None
-    try:
-        connection = psycopg2.connect(
-            user=database_config["POSTGRESQL_ADMIN_USER"],
-            password=database_config["POSTGRESQL_ADMIN_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DB_NAME"],
-        )
+def create_readonly_user(
+    user_name: Optional[str] = None,
+    password: Optional[str] = None,
+    *,
+    config: Optional[PostgreSQLConfig] = None,
+    dry_run: bool = False,
+) -> str:
+    """Creates a role with read-only access to the shared demo database.
 
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = connection.cursor()
-
-        # PostgreSQL Connection properties
-        if verbose:
-            logger.info("PostgreSQL DNS parameters: {0}".format(connection.get_dsn_parameters(), "\n"))
-
-        # PostgreSQL version
-        # if verbose:
-        #     cursor.execute("SELECT version();")
-        #     record = cursor.fetchone()
-        #     print('[i] You are connected to the following PostgreSQL database: {0}'.format(record[0]))
-
-        cursor.execute(sql_crt_role_01)
-        cursor.execute(sql_crt_role_02)
-        cursor.execute(sql_grant_01)
-        cursor.execute(sql_crt_db)
-        cursor.execute(sql_revoke)
-        cursor.execute(sql_grant_demo_01)
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            logger.info("PostgreSQL connection was closed")
-        else:
-            logger.error("PostgreSQL connection is None")
-
-    # open connection to newly created database to provide it with some grants
-    sql_newdb_grant = """GRANT ALL ON SCHEMA public TO {0} WITH GRANT OPTION;""".format(db_user)
-    connection_new_db = None
-
-    try:
-        logger.info("Connecting to the new database")
-        connection_new_db = psycopg2.connect(
-            user=db_user,
-            password=db_password,
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=db_name,
-        )
-        connection_new_db.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor_new_db = connection_new_db.cursor()
-        cursor_new_db.execute(sql_newdb_grant)
-        is_created = True
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection_new_db:
-            cursor_new_db.close()
-            connection_new_db.close()
-        else:
-            logger.error("PostgreSQL connection to the NEW DATABASE is None")
-
-    # grand additional grants for the new user to the public schema
-    grand_rights_to_own_public_schema(db_name, db_user)
-
-    #
-    # open connection to demo database to provide it with some grants
-    # this can be done only under demo user profile
-    #
-    sql_demodb_grant = """GRANT SELECT ON ALL TABLES IN SCHEMA public TO {db_user};""".format(db_user=db_user)
-    sql_demodb_grant_alt = """ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {db_user};""".format(
-        db_user=db_user
-    )
-    connection_demo_db = None
-    try:
-        logger.info("Connecting to the demo database")
-        connection_demo_db = psycopg2.connect(
-            user=database_config["POSTGRESQL_DEMO_USER"],
-            password=database_config["POSTGRESQL_DEMO_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DEMO_DB"],
-        )
-        connection_demo_db.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor_demo_db = connection_demo_db.cursor()
-        cursor_demo_db.execute(sql_demodb_grant)
-        cursor_demo_db.execute(sql_demodb_grant_alt)
-        is_created = True
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection_demo_db:
-            cursor_demo_db.close()
-            cursor_demo_db.close()
-        else:
-            logger.error("PostgreSQL connection to the DEMO DATABASE is None")
-
-    return is_created
-
-
-def grand_rights_to_own_public_schema(db_name: str, db_user: str) -> None:
-    """Creates a new database and a user in a PostgreSQL
+    See :meth:`PostgresMate.create_readonly_user`.
 
     Args:
-        db_name (str): a name (and a role) of a new database
-        db_user (str): a admin user of a new database
-        verbose (bool, optional): _description_. Defaults to True.
-    """
-
-    # open connection to newly created database to provide it with some grants
-    sql_newdb_grant_01 = """GRANT CREATE ON SCHEMA public TO {0}""".format(db_name)
-    sql_newdb_grant_02 = """GRANT CREATE ON SCHEMA public TO {0}""".format(db_user)
-
-    connection_new_db = None
-    try:
-        logger.info("Connecting to the new database")
-        connection_new_db = psycopg2.connect(
-            user=database_config["POSTGRESQL_ADMIN_USER"],
-            password=database_config["POSTGRESQL_ADMIN_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=db_name,
-        )
-
-        connection_new_db.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor_new_db = connection_new_db.cursor()
-        cursor_new_db.execute(sql_newdb_grant_01)
-        cursor_new_db.execute(sql_newdb_grant_02)
-        is_created = True
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection_new_db:
-            cursor_new_db.close()
-            connection_new_db.close()
-        else:
-            logger.error("PostgreSQL connection to the NEW DATABASE is None")
-
-
-def init_postgresql_with_demo_user():
-    """Initiate PostgreSQL demo database - required for a teaching course.
-    This function should be run, if needed.
-    For a moment, it won't be executed automatically by the system.
-    """
-
-    # create demo user and database
-    if create_postgresql_db(
-        db_name=database_config["POSTGRESQL_DEMO_DB"],
-        db_user=database_config["POSTGRESQL_DEMO_USER"],
-        db_password=database_config["POSTGRESQL_DEMO_PASSWORD"],
-    ):
-        logger.info("User and database in PostgreSQL were created")
-    else:
-        logger.warning("User and database in PostgreSQL were NOT created.")
-
-
-def create_postgresql_readonly_user_for_demo_db(readonly_db_user: str, readonly_db_password: str) -> bool:
-    """Creates readonly database user in the demo_db
-
-    Args:
-        readonly_db_user (str): database user name for readonly access
-        readonly_db_password (str): database user password for readonly access
+        user_name (str, optional): role to create. Defaults to the configured read-only user.
+        password (str, optional): its password. Defaults to the configured one.
+        config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
+        dry_run (bool): report the statements instead of executing them
 
     Returns:
-        bool: was created or not
+        str: the normalised role name
     """
 
-    is_created = False
+    return PostgresMate(config, dry_run=dry_run).create_readonly_user(user_name=user_name, password=password)
 
-    sql_crt_role_01 = """CREATE USER {user_name} WITH PASSWORD '{user_password}';""".format(
-        user_name=readonly_db_user, user_password=readonly_db_password
-    )
-    sql_grant_01 = """GRANT CONNECT ON DATABASE {db_name} TO {user_name};""".format(
-        db_name=database_config["POSTGRESQL_DEMO_DB"], user_name=readonly_db_user
-    )
 
-    connection = None
-    try:
-        connection = psycopg2.connect(
-            user=database_config["POSTGRESQL_ADMIN_USER"],
-            password=database_config["POSTGRESQL_ADMIN_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DB_NAME"],
-        )
+def init_demo_database(
+    *,
+    config: Optional[PostgreSQLConfig] = None,
+    dry_run: bool = False,
+) -> CreatedDatabase:
+    """Creates the shared demo database and hardens its schema.
 
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = connection.cursor()
+    See :meth:`PostgresMate.init_demo_database`.
 
-        cursor.execute(sql_crt_role_01)
-        cursor.execute(sql_grant_01)
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            logger.info("PostgreSQL connection was closed")
-        else:
-            logger.error("PostgreSQL connection is None")
+    Args:
+        config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
+        dry_run (bool): report the statements instead of executing them
 
-    #
-    # open connection to DEMO database with postgre (super user) user rights to revoke create rights
-    #
+    Returns:
+        CreatedDatabase: what was created
+    """
 
-    sql_demodb_grant_01 = """REVOKE CREATE ON SCHEMA public FROM PUBLIC;"""
-    sql_demodb_grant_02 = """GRANT CREATE ON SCHEMA public to {db_user};""".format(
-        db_user=database_config["POSTGRESQL_DEMO_USER"]
-    )
+    return PostgresMate(config, dry_run=dry_run).init_demo_database()
 
-    connection = None
-    try:
-        connection = psycopg2.connect(
-            user=database_config["POSTGRESQL_ADMIN_USER"],
-            password=database_config["POSTGRESQL_ADMIN_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DEMO_DB"],
-        )
 
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = connection.cursor()
+def next_database_names(*, config: Optional[PostgreSQLConfig] = None) -> DatabaseNames:
+    """Derives the next free auto-generated database and user names.
 
-        cursor.execute(sql_demodb_grant_01)
-        cursor.execute(sql_demodb_grant_02)
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-            logger.info("PostgreSQL connection was closed")
-        else:
-            logger.error("PostgreSQL connection is None")
+    See :meth:`PostgresMate.next_database_names`.
 
-    #
-    # open connection to demo database to provide it with some grants
-    # this can be done only under demo user profile
-    #
-    sql_demodb_grant = """GRANT SELECT ON ALL TABLES IN SCHEMA public TO {db_user};""".format(db_user=readonly_db_user)
-    sql_demodb_grant_alt = """ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {db_user};""".format(
-        db_user=readonly_db_user
-    )
-    connection_demo_db = None
-    try:
-        logger.info("Connecting to the demo database")
-        connection_demo_db = psycopg2.connect(
-            user=database_config["POSTGRESQL_DEMO_USER"],
-            password=database_config["POSTGRESQL_DEMO_PASSWORD"],
-            host=database_config["POSTGRESQL_DB_HOST"],
-            port=database_config["POSTGRESQL_DB_HOST_PORT"],
-            database=database_config["POSTGRESQL_DEMO_DB"],
-        )
-        connection_demo_db.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor_demo_db = connection_demo_db.cursor()
-        cursor_demo_db.execute(sql_demodb_grant)
-        cursor_demo_db.execute(sql_demodb_grant_alt)
-        is_created = True
-    except (Exception, psycopg2.Error) as ex:
-        logger.warning(f"Error while working with PostgreSQL: {ex}")
-        logger.error(traceback.format_exc())
-        is_created = False
-    finally:
-        if connection_demo_db:
-            cursor_demo_db.close()
-            cursor_demo_db.close()
-        else:
-            logger.error("PostgreSQL connection to the DEMO DATABASE is None")
+    Args:
+        config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
 
-    return is_created
+    Returns:
+        DatabaseNames: the next free names and the number they are built from
+    """
+
+    return PostgresMate(config).next_database_names()

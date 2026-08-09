@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dbmate"
 description = "`dbmate` overtakes a role of a database mate, whose purpose is to create and maintain database schemas and users"
-version = "0.0.1"
+version = "0.2.0"
 readme = "README.md"
 authors = [
   {name = "vdmitriyev"}
@@ -35,6 +35,28 @@ documentation = "https://vdmitriyev.github.io/dbmate/"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["dbmate*"]
+
+[tool.setuptools.package-data]
+dbmate = ["py.typed"]
+
+# Keep `task py:black` and the pre-commit hook (--line-length 120) in agreement.
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs a live PostgreSQL (see compose-tests.yaml)",
+]
+# Keep a bare `pytest` green without Docker; run the rest with `pytest -m integration`.
+addopts = "-m 'not integration'"
 
 [dependency-groups]
 dev = [

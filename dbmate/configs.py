@@ -1,10 +1,12 @@
+"""Process wide singletons: the logger, the Rich console and the global flags."""
+
 from rich.console import Console
 
-from dbmate.constants import APP_LOG_LEVEL
+from dbmate.constants import app_log_level
 from dbmate.logger import get_logger
 
 
-class GlobalFlags:
+class GlobalFlags:  # pylint: disable=too-few-public-methods
     """Class to hold global configuration state."""
 
     dry_run: bool = False
@@ -25,6 +27,6 @@ def cprint(*args, log_level: str = "debug", **kwargs) -> None:
         **kwargs: Keyword arguments forwarded to console.print().
     """
     console.print(*args, **kwargs)
-    if APP_LOG_LEVEL == "DEBUG" or settings.verbose:
+    if app_log_level() == "DEBUG" or settings.verbose:
         message = " ".join(str(a) for a in args)
         getattr(logger, log_level, logger.debug)(message)

@@ -1,0 +1,107 @@
+version: '3'
+
+vars:
+  COMPOSE_FILE: compose-tests.yaml
+
+tasks:
+
+  check-from-docker:
+    desc: Check connectivity to databases by service name on port 5432 from inside Docker network
+    silent: true
+    cmds:
+      - |
+        NETWORK=$(docker network ls --filter name=dbmate-network --format "{{.Name}}" | head -n 1)
+        for db in database-15 database-16 database-17 database-18 database-19; do
+          if docker run --rm --network $NETWORK curlimages/curl -s --connect-timeout 2 telnet://$db:5432 > /dev/null 2>&1; then
+            echo "$db:5432 -> UP"
+          else
+            echo "$db:5432 -> DOWN"
+          fi
+        done
+
+  up:
+    desc: Start all databases or a specific service (e.g. 'task up' or 'task up -- database-15')
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d {{.CLI_ARGS}}
+
+  down:
+    desc: Stop and remove containers
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} down {{.CLI_ARGS}}
+
+  restart:
+    desc: Restart containers (e.g. 'task restart' or 'task restart -- database-15')
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} restart {{.CLI_ARGS}}
+
+  ps:
+    desc: View status of running database services
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} ps
+
+  logs:
+    desc: Stream logs for containers (e.g. 'task logs' or 'task logs -- database-15')
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} logs -f {{.CLI_ARGS}}
+
+  clean:
+    desc: Stop containers and delete volumes (resets all database data)
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} down -v
+
+  # ---------------------------------------------------------------------------
+  # Individual Database Shortcuts
+  # ---------------------------------------------------------------------------
+  pg15:
+    desc: Start PostgreSQL 15
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d database-15
+
+  pg16:
+    desc: Start PostgreSQL 16
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d database-16
+
+  pg17:
+    desc: Start PostgreSQL 17
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d database-17
+
+  pg18:
+    desc: Start PostgreSQL 18
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d database-18
+
+  stop:pg15:
+    desc: Stop PostgreSQL 15
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} stop database-15
+
+  stop:pg16:
+    desc: Stop PostgreSQL 16
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} stop database-16
+
+  stop:pg17:
+    desc: Stop PostgreSQL 17
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} stop database-17
+
+  stop:pg18:
+    desc: Stop PostgreSQL 18
+    silent: true
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} stop database-18

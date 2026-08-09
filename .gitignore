@@ -6,6 +6,7 @@ compose-claude.yaml
 
 # folders
 .venv/*
+.dvenv/*
 temp/*
 data/*
 *-data/*

@@ -1,4 +1,10 @@
+"""Reads the installed package metadata."""
+
 import importlib.metadata as importlib_metadata
+
+from dbmate.logger import get_logger
+
+logger = get_logger()
 
 
 def package_summary(package_name: str = "dbmate"):
@@ -14,7 +20,7 @@ def package_summary(package_name: str = "dbmate"):
         info.append({"field": "Package name", "value": metadata.metadata["Name"]})
         info.append({"field": "Summary", "value": metadata.metadata.get("Summary")})
     except importlib_metadata.PackageNotFoundError:
-        print(f"Package '{package_name}' not found.")
+        logger.debug("Package '%s' not found; is it installed?", package_name)
 
     return info
 
@@ -34,6 +40,6 @@ def package_version(package_name: str = "dbmate") -> str:
         metadata = importlib_metadata.distribution(package_name)
         version = metadata.version
     except importlib_metadata.PackageNotFoundError:
-        print(f"Package '{package_name}' not found.")
+        logger.debug("Package '%s' not found; is it installed?", package_name)
 
     return version

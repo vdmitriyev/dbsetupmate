@@ -1,4 +1,5 @@
-from enum import Enum
+"""Root command line interface of dbmate."""
+
 from pathlib import Path
 
 import typer
@@ -10,10 +11,14 @@ from typing_extensions import Annotated
 from dbmate.commands import database as database_module
 from dbmate.commands import self as self_module
 from dbmate.configs import console, cprint, settings
+from dbmate.logger import configure_logging
 from dbmate.version import package_summary, package_version
 
 app = typer.Typer(
-    help="`dbmate` overtakes a role of a database mate, whose purpose is to create and maintain database schemas and users"
+    help=(
+        "`dbmate` overtakes a role of a database mate, "
+        "whose purpose is to create and maintain database schemas and users"
+    )
 )
 
 
@@ -70,6 +75,22 @@ def main(
     settings.dry_run = dry_run
     settings.verbose = verbose
 
+    # Load the environment before anything reads it: `PostgreSQLConfig.from_env()`
+    # is called inside the subcommands, which run after this callback returns.
+    if env_file:
+        cprint(
+            "Loading environment variables from:",
+            Text(f"{env_file}", style="bold blue"),
+        )
+        success = load_dotenv(env_file, override=True)
+        if not success:
+            typer.echo(f"Warning: Could not load variables from {env_file}", err=True)
+    else:
+        load_dotenv()
+
+    # The library only ever attaches a NullHandler; the CLI opts into file logging.
+    configure_logging()
+
     if settings.verbose:
         cprint(
             Text("✅", style="bold green"),
@@ -102,18 +123,7 @@ def main(
             console.print(table)
         else:
             cprint(f"{package_version()}", style="yellow")
-        exit(0)
-
-    if env_file:
-        cprint(
-            "Loading environment variables from:",
-            Text(f"{env_file}", style="bold blue"),
-        )
-        success = load_dotenv(env_file, override=True)
-        if not success:
-            typer.echo(f"Warning: Could not load variables from {env_file}", err=True)
-    else:
-        load_dotenv()
+        raise typer.Exit(code=0)
 
     # If a subcommand was provided, don't exit; continue to the subcommand.
     # Otherwise, Typer will handle exiting or showing the help page.

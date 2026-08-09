@@ -4,26 +4,96 @@ services:
     image: "postgres:15"
     restart: unless-stopped
     env_file:
-       - .env
+      - .env
     environment:
       PGDATA: /pgdata
       POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
       POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5415:5432"
     volumes:
-      - pg15-volume-database:/pgdata
+      - dbmate-pg15-db:/pgdata
     healthcheck:
-      test: [ "CMD-SHELL", "sleep 5"] #workaround to wait for postgresql
-      interval : 10s
-      timeout : 10s
-      retries : 5
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dbmate-network
+
+  database-16:
+    image: "postgres:16"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PGDATA: /pgdata
+      POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
+      POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+    ports:
+      - "127.0.0.1:5416:5432"
+    volumes:
+      - dbmate-pg16-db:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dbmate-network
+
+  database-17:
+    image: "postgres:17"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PGDATA: /pgdata
+      POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
+      POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+    ports:
+      - "127.0.0.1:5417:5432"
+    volumes:
+      - dbmate-pg17-db:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dbmate-network
+
+  database-18:
+    image: "postgres:18"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PGDATA: /pgdata
+      POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
+      POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+    ports:
+      - "127.0.0.1:5418:5432"
+    volumes:
+      - dbmate-pg18-db:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - dbmate-network
 
 volumes:
-  pg15-volume-database:
+  dbmate-pg15-db:
+  dbmate-pg16-db:
+  dbmate-pg17-db:
+  dbmate-pg18-db:
+  dbmate-pg19-db:
 
 networks:
   dbmate-network:
