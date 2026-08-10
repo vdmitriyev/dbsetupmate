@@ -120,6 +120,15 @@ except DBSetupMateException as ex:
 print(f'All created: {all_created}')
 ```
 
+## CLI UI
+
+CLI features overview of the `postgresql` category:
+```
+dbsetupmate pg --help
+```
+
+![alt text](https://raw.githubusercontent.com/vdmitriyev/dbsetupmate/main/docs/cli-ui-pg-category.png)
+
 ## Development: Setup
 
 This guide walks through setting up the project for local development using `uv`.
