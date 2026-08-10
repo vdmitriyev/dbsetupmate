@@ -2,6 +2,11 @@
 History
 =======
 
+0.8.1 (2026-08-10)
+------------------
+
+* Improving documentation and adding badges to README.md
+
 0.8.0 (2026-08-10)
 ------------------
 

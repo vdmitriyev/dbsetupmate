@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dbsetupmate"
 description = "`dbsetupmate` overtakes a role of a database mate, whose purpose is to create and maintain database schemas and users"
-version = "0.8.0"
+version = "0.8.1"
 readme = "README.md"
 authors = [
   {name = "vdmitriyev"}

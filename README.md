@@ -1,5 +1,8 @@
 ## About
 
+![PyPI Version](https://img.shields.io/pypi/v/dbsetupmate?style=flat)
+![PyPI License](https://img.shields.io/pypi/l/dbsetupmate?style=flat)
+
 `dbsetupmate` is a Python package and CLI, which overtakes a role of a database mate. Primary purpose is to create and maintain database schemas and users.
 
 ## Install
