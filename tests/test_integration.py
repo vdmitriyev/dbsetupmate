@@ -92,7 +92,6 @@ def test_create_db_end_to_end(mate):
     created = mate.create_db(DB_NAME, DB_USER, DB_PASSWORD)
 
     assert created.database == DB_NAME
-    assert created.granted_shared_access is True
     assert mate.database_exists(DB_NAME) is True
     assert mate.user_exists(DB_USER) is True
 

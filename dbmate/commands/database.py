@@ -50,11 +50,6 @@ def create_db(
         prompt=True,
         hide_input=True,
     ),
-    skip_shared_access: bool = typer.Option(
-        False,
-        "--skip-shared-access",
-        help="Do not grant the new user read-only access to the shared database.",
-    ),
 ) -> None:
     """Create a new database together with its owner and login user."""
 
@@ -71,7 +66,6 @@ def create_db(
             db_name=new_db_name,
             db_user=new_db_user,
             db_password=new_db_password,
-            grant_shared_access=not skip_shared_access,
         )
 
     if created.dry_run:
@@ -80,8 +74,7 @@ def create_db(
 
     cprint(
         Text("✓", style="bold green"),
-        f"Database '{created.database}' was created for user '{created.login_role}'"
-        + (" with shared access" if created.granted_shared_access else ""),
+        f"Database '{created.database}' was created for user '{created.login_role}'",
     )
 
 
@@ -114,6 +107,22 @@ def create_user_readonly(
         created_user = _mate().create_user_readonly(user_name=user_name, password=password)
 
     cprint(Text("✓", style="bold green"), f"Read-only user '{created_user}' is ready")
+
+
+@app.command("grant-shared-access")
+def grant_shared_access(
+    user_name: str = typer.Option(
+        ...,
+        "--user-name",
+        help="Role to grant read-only access to the shared database.",
+    ),
+) -> None:
+    """Grant an existing user read-only access to the shared database."""
+
+    with _reporting():
+        _mate().grant_shared_access(user_name)
+
+    cprint(Text("✓", style="bold green"), f"Granted '{user_name}' read-only access to the shared database")
 
 
 @app.command("show-next-db-name")

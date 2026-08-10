@@ -15,14 +15,13 @@ from dbmate.postgresql.manager import PostgresMate
 from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
 
 
-def create_db(  # pylint: disable=too-many-arguments
+def create_db(
     db_name: str,
     db_user: str,
     db_password: str,
     *,
     config: Optional[PostgreSQLConfig] = None,
     dry_run: bool = False,
-    grant_shared_access: bool = True,
 ) -> CreatedDatabase:
     """Creates a database, its owning group role and a login role for it.
 
@@ -34,7 +33,6 @@ def create_db(  # pylint: disable=too-many-arguments
         db_password (str): password for the login role
         config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
         dry_run (bool): report the statements instead of executing them
-        grant_shared_access (bool): also grant read-only access to the shared database
 
     Returns:
         CreatedDatabase: what was created
@@ -44,8 +42,26 @@ def create_db(  # pylint: disable=too-many-arguments
         db_name=db_name,
         db_user=db_user,
         db_password=db_password,
-        grant_shared_access=grant_shared_access,
     )
+
+
+def grant_shared_access(
+    role: str,
+    *,
+    config: Optional[PostgreSQLConfig] = None,
+    dry_run: bool = False,
+) -> None:
+    """Grants a role read-only access to the shared database.
+
+    See :meth:`PostgresMate.grant_shared_access`.
+
+    Args:
+        role (str): the role to grant read-only shared access to
+        config (PostgreSQLConfig, optional): connection settings. Defaults to the environment.
+        dry_run (bool): report the statements instead of executing them
+    """
+
+    PostgresMate(config, dry_run=dry_run).grant_shared_access(role)
 
 
 def create_user_readonly(

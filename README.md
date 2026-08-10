@@ -4,26 +4,50 @@
 
 ## Install
 
-```bash
-uv pip install -e . --group dev
+Installation using `uv`
+
+```
+uv pip install dbmate
 ```
 
 Copy `sample.env` to `.env` and adjust the `POSTGRESQL_*` values.
 
-## CLI
+## CLI Mode
 
-```bash
-dbmate --help
-dbmate --env-file .env db create-db --new-db-name course_db_01 --new-db-user course_user_01
-dbmate --env-file .env db show-next-db-name      # next free generated database name
-dbmate --env-file .env db create-shared-db       # create the shared database
-dbmate --env-file .env db create-user-readonly   # read-only user for the shared database
-dbmate --env-file .env -d db create-db           # -d dry run, -v verbose
-```
+* Show the available commands and options
+  ```
+  dbmate --help
+  ```
+* Create a database together with its owner and login user
+  ```
+  dbmate --env-file .env db create-db --new-db-name course_db_01 --new-db-user course_user_01
+  ```
+* Next free generated database name
+  ```
+  dbmate --env-file .env db show-next-db-name
+  ```
+* Create the shared database
+  ```
+  dbmate --env-file .env db create-shared-db
+  ```
+* Read-only user for the shared database
+  ```
+  dbmate --env-file .env db create-user-readonly
+  ```
+* Grant an existing user read-only access to the shared database
+  ```
+  dbmate --env-file .env db grant-shared-access --user-name course_user_01
+  ```
+* There is also a `dry-run` option for all commands
+  ```
+    dbmate --env-file .env --dry-run db create-db
+    ```
 
-The password is prompted for when `--new-db-password` is omitted. Commands exit `1` on failure.
+P.S. The password is prompted for when `--new-db-password` is omitted. Commands exit `1` on failure.
 
-## Library
+## Library Mode
+
+Here is a example how to use `dbmate` as Python library.
 
 ```python
 from dbmate import PostgresMate, PostgreSQLConfig, DBMateException
@@ -39,7 +63,29 @@ except DBMateException as ex:
 `PostgreSQLConfig.from_env()` reads the `POSTGRESQL_*` variables instead. Failures raise a
 subclass of `DBMateException`, never a `bool`.
 
-## Tests
+## Development: Setup
+
+This guide walks through setting up the project for local development using `uv`.
+
+1. Create a new virtual environment in a `.venv` directory and activates it.
+    ```bash
+    uv venv
+    ```
+1. Activate the environment (macOS/Linux):
+   ```
+   source .venv/bin/activate
+   ```
+1. Activate the environment (Windows):
+    ```
+    call .venv/Scripts/activate.bat
+    ```
+1.  Install package in **editable mode** with **dev** dependencies
+    Installing the package in **editable mode** (`-e`) is the key to development.
+    ```bash
+    uv pip install -e . --group dev
+    ```
+
+## Development: Running Tests
 
 ```bash
 task py:pytest              # unit tests, no database needed

@@ -75,18 +75,15 @@ def test_create_db_runs_the_expected_statements_in_order(mate, server):
     mate.create_db("course_db_01", "course_user_01", "s3cret")
 
     ddl = server.ddl_texts()
-    assert len(ddl) == 11
+    assert len(ddl) == 8
     assert "CREATE ROLE " in ddl[0] and "NOLOGIN" in ddl[0]
     assert "CREATE ROLE " in ddl[1] and "LOGIN ENCRYPTED PASSWORD %s" in ddl[1]
     assert ddl[2].startswith("Composed([SQL('GRANT ')")
     assert "CREATE DATABASE" in ddl[3]
     assert "REVOKE ALL ON DATABASE" in ddl[4]
-    assert "GRANT CONNECT ON DATABASE" in ddl[5]
-    assert "GRANT ALL ON SCHEMA" in ddl[6]
+    assert "GRANT ALL ON SCHEMA" in ddl[5]
+    assert "GRANT CREATE ON SCHEMA" in ddl[6]
     assert "GRANT CREATE ON SCHEMA" in ddl[7]
-    assert "GRANT CREATE ON SCHEMA" in ddl[8]
-    assert "GRANT SELECT ON ALL TABLES IN SCHEMA" in ddl[9]
-    assert "ALTER DEFAULT PRIVILEGES" in ddl[10]
 
 
 def test_create_db_returns_what_it_created(mate):
@@ -95,7 +92,6 @@ def test_create_db_returns_what_it_created(mate):
     assert created.database == "course_db_01"
     assert created.owner_role == "course_db_01"
     assert created.login_role == "course_user_01"
-    assert created.granted_shared_access is True
     assert created.dry_run is False
 
 
@@ -157,21 +153,25 @@ def test_schema_rights_are_granted_from_inside_the_new_database(mate, server):
     assert grant_all.user == "course_user_01"
 
 
-def test_shared_grants_run_as_the_shared_owner(mate, server):
+def test_create_db_does_not_grant_shared_access(mate, server):
+    # Shared access is now a separate call, so create_db must not touch it.
     mate.create_db("course_db_01", "course_user_01", "s3cret")
 
-    shared_grants = [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
-
-    assert shared_grants
-    assert all(item.database == "shared_db" and item.user == "shared_user" for item in shared_grants)
-
-
-def test_shared_access_can_be_skipped(mate, server):
-    created = mate.create_db("course_db_01", "course_user_01", "s3cret", grant_shared_access=False)
-
-    assert created.granted_shared_access is False
-    assert not [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
     assert not [item for item in server.executed if "GRANT CONNECT ON DATABASE" in item.text]
+    assert not [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
+
+
+def test_grant_shared_access_grants_connect_and_select(mate, server):
+    mate.grant_shared_access("course_user_01")
+
+    connect_grants = [item for item in server.executed if "GRANT CONNECT ON DATABASE" in item.text]
+    assert connect_grants
+
+    shared_grants = [item for item in server.executed if "ALL TABLES IN SCHEMA" in item.text]
+    assert shared_grants
+    assert any("ALTER DEFAULT PRIVILEGES" in item.text for item in server.executed)
+    # The read-only grants run as the shared owner, inside the shared database.
+    assert all(item.database == "shared_db" and item.user == "shared_user" for item in shared_grants)
 
 
 # ----------------------------------------------------------------------
@@ -264,7 +264,6 @@ def test_a_dry_run_executes_no_ddl(config, server):
     assert server.ddl() == []
     assert created.dry_run is True
     assert created.database == "course_db_01"
-    assert created.granted_shared_access is False
 
 
 def test_a_dry_run_still_runs_the_read_only_checks(config, server):

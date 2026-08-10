@@ -30,8 +30,6 @@ PUBLIC_ROLE = sql.SQL("PUBLIC")
 #: The schema name `public` *is* an ordinary identifier.
 PUBLIC_SCHEMA = sql.Identifier("public")
 
-_ROLE_ATTRIBUTES = "NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
-
 
 class PostgresMate:
     """Creates and maintains PostgreSQL databases, roles and grants.
@@ -123,8 +121,6 @@ class PostgresMate:
         db_name: str,
         db_user: str,
         db_password: str,
-        *,
-        grant_shared_access: bool = True,
     ) -> CreatedDatabase:
         """Creates a database, its owning group role and a login role for it.
 
@@ -132,8 +128,6 @@ class PostgresMate:
             db_name (str): name of the new database, also used for the owning group role
             db_user (str): name of the login role that owns the database
             db_password (str): password for the login role
-            grant_shared_access (bool): also grant the new role read-only access to
-                the shared database
 
         Returns:
             CreatedDatabase: what was created
@@ -159,7 +153,9 @@ class PostgresMate:
 
         role_statements: List[Statement] = [
             (
-                sql.SQL("CREATE ROLE {role} " + _ROLE_ATTRIBUTES + " NOLOGIN").format(role=sql.Identifier(db_name)),
+                sql.SQL("CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN").format(
+                    role=sql.Identifier(db_name)
+                ),
                 None,
             ),
             (
@@ -167,9 +163,9 @@ class PostgresMate:
                 # statement text and cannot leak through logs or a traceback.
                 # psycopg2 interpolates client side, which is why this works in DDL
                 # (psycopg3 and asyncpg bind server side and would reject it).
-                sql.SQL("CREATE ROLE {role} " + _ROLE_ATTRIBUTES + " LOGIN ENCRYPTED PASSWORD %s").format(
-                    role=sql.Identifier(db_user)
-                ),
+                sql.SQL(
+                    "CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN ENCRYPTED PASSWORD %s"
+                ).format(role=sql.Identifier(db_user)),
                 (db_password,),
             ),
             (
@@ -194,15 +190,6 @@ class PostgresMate:
                 None,
             ),
         ]
-        if grant_shared_access:
-            database_statements.append(
-                (
-                    sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
-                        shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(db_user)
-                    ),
-                    None,
-                )
-            )
 
         if self.dry_run:
             planned = list(role_statements)
@@ -216,8 +203,6 @@ class PostgresMate:
                 )
             ]
             planned += self._public_schema_statements(db_name, db_user)
-            if grant_shared_access:
-                planned += self._shared_readonly_statements(db_user)
             # Borrow a cursor purely so the statements render as readable SQL.
             with self._admin_connection() as cursor:
                 self._announce(planned, cursor)
@@ -225,7 +210,6 @@ class PostgresMate:
                 database=db_name,
                 owner_role=db_name,
                 login_role=db_user,
-                granted_shared_access=False,
                 dry_run=True,
             )
 
@@ -260,14 +244,10 @@ class PostgresMate:
             )
         self.grant_public_schema_rights(db_name, db_user)
 
-        if grant_shared_access:
-            self._grant_shared_readonly(db_user)
-
         return CreatedDatabase(
             database=db_name,
             owner_role=db_name,
             login_role=db_user,
-            granted_shared_access=grant_shared_access,
         )
 
     def grant_public_schema_rights(self, db_name: str, db_user: str) -> None:
@@ -283,6 +263,29 @@ class PostgresMate:
 
         with self._admin_connection(database=db_name) as cursor:
             self._execute_all(cursor, self._public_schema_statements(db_name, db_user))
+
+    def grant_shared_access(self, role: str) -> None:
+        """Grants a role read-only access to the shared database.
+
+        Opens the shared database to the role (GRANT CONNECT, as admin), then
+        grants SELECT on its public schema (as the shared owner - only it may).
+
+        Args:
+            role (str): the role to grant read-only shared access to
+        """
+
+        role = normalize_identifier(role, "role")
+
+        connect_statement: Statement = (
+            sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
+                shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(role)
+            ),
+            None,
+        )
+        with self._admin_connection() as cursor:
+            self._execute_all(cursor, [connect_statement])
+
+        self._grant_shared_readonly(role)
 
     def create_user_readonly(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
         """Creates a role with read-only access to the shared database.
@@ -307,23 +310,17 @@ class PostgresMate:
 
         statements: List[Statement] = [
             (
-                sql.SQL("CREATE ROLE {role} " + _ROLE_ATTRIBUTES + " LOGIN ENCRYPTED PASSWORD %s").format(
-                    role=sql.Identifier(user_name)
-                ),
+                sql.SQL(
+                    "CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN ENCRYPTED PASSWORD %s"
+                ).format(role=sql.Identifier(user_name)),
                 (password,),
-            ),
-            (
-                sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
-                    shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(user_name)
-                ),
-                None,
             ),
         ]
 
         with self._admin_connection() as cursor:
             self._execute_all(cursor, statements)
 
-        self._grant_shared_readonly(user_name)
+        self.grant_shared_access(user_name)
         logger.info("Read-only role '%s' was created", user_name)
 
         return user_name
@@ -352,9 +349,9 @@ class PostgresMate:
     def create_shared_db(self) -> CreatedDatabase:
         """Creates the shared database and its owner, then hardens its schema.
 
-        Bootstrapping the shared database is deliberately not routed through
-        :meth:`create_db` with the shared grants enabled - that would try to
-        grant the shared database to itself while creating it.
+        This never grants shared access to the new owner: :meth:`create_db` no
+        longer does that, and :meth:`grant_shared_access` is deliberately not
+        called here - it would try to grant the shared database to itself.
 
         Returns:
             CreatedDatabase: what was created
@@ -364,7 +361,6 @@ class PostgresMate:
             db_name=self.config.shared_db,
             db_user=self.config.shared_user,
             db_password=self.config.shared_password,
-            grant_shared_access=False,
         )
         self.harden_shared_schema()
         logger.info("Shared database '%s' was initialised", self.config.shared_db)

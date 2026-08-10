@@ -22,6 +22,7 @@ _EXPORTS: Dict[str, str] = {
     "create_db": "dbmate.postgresql.functions",
     "create_shared_db": "dbmate.postgresql.functions",
     "create_user_readonly": "dbmate.postgresql.functions",
+    "grant_shared_access": "dbmate.postgresql.functions",
     "show_next_db_name": "dbmate.postgresql.functions",
     "DBMateException": "dbmate.exceptions",
     "DBConnectionException": "dbmate.exceptions",
@@ -75,6 +76,7 @@ if TYPE_CHECKING:  # pragma: no cover - for type checkers and IDEs only
         create_db,
         create_shared_db,
         create_user_readonly,
+        grant_shared_access,
         show_next_db_name,
     )
     from dbmate.postgresql.manager import PostgresMate

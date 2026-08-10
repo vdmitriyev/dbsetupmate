@@ -2,6 +2,18 @@
 History
 =======
 
+0.5.0 (2026-08-10)
+------------------
+
+* **Breaking:** ``create_db`` no longer grants shared access. Granting is now a
+  separate step:
+
+  * CLI: new ``db grant-shared-access --user-name ...``; ``create-db`` dropped
+    ``--skip-shared-access``.
+  * API: new ``PostgresMate.grant_shared_access`` / ``grant_shared_access``;
+    ``create_db(grant_shared_access=...)`` removed, as was
+    ``CreatedDatabase.granted_shared_access``.
+
 0.4.1 (2026-08-09)
 ------------------
 

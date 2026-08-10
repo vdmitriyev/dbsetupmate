@@ -13,6 +13,7 @@ from dbmate.postgresql.functions import (
     create_db,
     create_shared_db,
     create_user_readonly,
+    grant_shared_access,
     show_next_db_name,
 )
 from dbmate.postgresql.identifiers import normalize_identifier
@@ -29,5 +30,6 @@ __all__ = [
     "create_db",
     "create_shared_db",
     "create_user_readonly",
+    "grant_shared_access",
     "show_next_db_name",
 ]
