@@ -1,13 +1,13 @@
 """The PostgreSQL backend of dbmate.
 
 All real database work lives here. :class:`PostgresMate` is the entry point for
-library consumers; :mod:`dbmate.postgresql.functions` wraps it in module level
-convenience functions.
+library consumers; its ``_``-prefixed internals sit on the :class:`BasePostgresMate`
+parent class it inherits from. The SQL those methods run is assembled in
+:mod:`dbmate.postgresql.statements`, and :mod:`dbmate.postgresql.functions` wraps
+the public API in module level convenience functions.
 """
 
-from typing import Iterable, List, Optional, Sequence, Tuple
-
-from psycopg2 import sql
+from typing import Iterable, List, Optional, Sequence
 
 from dbmate.configs import cprint, logger
 from dbmate.exceptions import (
@@ -15,23 +15,121 @@ from dbmate.exceptions import (
     DBMateException,
     DBUserAlreadyExistsException,
 )
+from dbmate.postgresql import statements
 from dbmate.postgresql.configs import PostgreSQLConfig
 from dbmate.postgresql.connection import connect
+from dbmate.postgresql.helpers import render_statement, require_password
 from dbmate.postgresql.identifiers import normalize_identifier
 from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
-
-#: A statement together with its bound parameters.
-Statement = Tuple[sql.Composable, Optional[tuple]]
-
-#: The PUBLIC pseudo-role. It is a keyword, not an identifier: quoting it would
-#: make PostgreSQL look for a role literally named "public" and fail with 42704.
-PUBLIC_ROLE = sql.SQL("PUBLIC")
-
-#: The schema name `public` *is* an ordinary identifier.
-PUBLIC_SCHEMA = sql.Identifier("public")
+from dbmate.postgresql.statements import Statement
 
 
-class PostgresMate:
+class BasePostgresMate:  # pylint: disable=too-few-public-methods
+    """Connection, execution and inspection internals shared by :class:`PostgresMate`.
+
+    This holds everything the public API is built on - opening connections,
+    running or announcing statements, and the low-level existence checks - so
+    that :class:`PostgresMate` reads as a list of the operations dbmate offers.
+
+    Args:
+        config (PostgreSQLConfig, optional): connection settings. Defaults to
+            :meth:`PostgreSQLConfig.from_env`, read at construction time.
+        dry_run (bool): when ``True``, read-only queries still run but no
+            statement that changes the server is executed.
+    """
+
+    def __init__(self, config: Optional[PostgreSQLConfig] = None, *, dry_run: bool = False) -> None:
+        self.config = config if config is not None else PostgreSQLConfig.from_env()
+        self.dry_run = dry_run
+
+    # ------------------------------------------------------------------
+    # connections
+    # ------------------------------------------------------------------
+
+    def _admin_connection(self, database: Optional[str] = None, autocommit: bool = True):
+        """Opens a connection as the administrative role."""
+
+        return connect(
+            self.config,
+            database=database or self.config.database,
+            user=self.config.admin_user,
+            password=self.config.admin_password,
+            autocommit=autocommit,
+        )
+
+    def _connection(self, database: str, user: str, password: str, autocommit: bool = True):
+        """Opens a connection as an arbitrary role."""
+
+        return connect(self.config, database=database, user=user, password=password, autocommit=autocommit)
+
+    # ------------------------------------------------------------------
+    # inspection
+    # ------------------------------------------------------------------
+
+    def _preflight(self, db_name: str, db_user: str) -> None:
+        """Fails early on the two common collisions, before anything is created."""
+
+        with self._admin_connection() as cursor:
+            if self._database_exists(cursor, db_name):
+                raise DatabaseAlreadyExistsException(f"Database '{db_name}' already exists")
+            for role in (db_name, db_user):
+                if self._role_exists(cursor, role):
+                    raise DBUserAlreadyExistsException(f"Role '{role}' already exists")
+
+    @staticmethod
+    def _database_exists(cursor, name: str) -> bool:
+        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (name,))
+        return cursor.fetchone() is not None
+
+    @staticmethod
+    def _role_exists(cursor, name: str) -> bool:
+        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s;", (name,))
+        return cursor.fetchone() is not None
+
+    # ------------------------------------------------------------------
+    # shared read-only access, cleanup
+    # ------------------------------------------------------------------
+
+    def _grant_shared_readonly(self, role: str) -> None:
+        """Grants SELECT on the shared schema. Only its owner may do this."""
+
+        with self._connection(self.config.shared_db, self.config.shared_user, self.config.shared_password) as cursor:
+            self._execute_all(cursor, statements.shared_readonly_statements(role))
+
+    def _drop_roles_quietly(self, roles: Sequence[str]) -> None:
+        """Best effort cleanup of roles this call created; never masks the original error."""
+
+        try:
+            with self._admin_connection() as cursor:
+                for role in roles:
+                    cursor.execute(statements.drop_role_statement(role))
+            logger.info("Rolled back the roles %s after a failed database creation", ", ".join(roles))
+        except DBMateException as ex:
+            logger.warning("Could not roll back the roles %s: %s", ", ".join(roles), ex)
+
+    # ------------------------------------------------------------------
+    # execution
+    # ------------------------------------------------------------------
+
+    def _execute_all(self, cursor, statement_list: Iterable[Statement]) -> None:
+        if self.dry_run:
+            self._announce(statement_list, cursor)
+            return
+        for statement, params in statement_list:
+            logger.debug("Executing: %s", render_statement(statement, cursor))
+            cursor.execute(statement, params)
+
+    @staticmethod
+    def _announce(statement_list: Iterable[Statement], cursor=None) -> None:
+        """Reports statements that a dry run is skipping."""
+
+        for statement, _ in statement_list:
+            # No square brackets: Rich would read them as markup. No wrapping either,
+            # so a statement stays on one line and can be copied out as-is.
+            cprint(f"dry-run: {render_statement(statement, cursor)}", style="yellow", soft_wrap=True, log_level="info")
+
+
+class PostgresMate(BasePostgresMate):
     """Creates and maintains PostgreSQL databases, roles and grants.
 
     Every method raises a :class:`~dbmate.exceptions.DBMateException` subclass on
@@ -47,10 +145,6 @@ class PostgresMate:
         >>> mate = PostgresMate()
         >>> mate.create_db("course_db_01", "course_user_01", "s3cret")
     """
-
-    def __init__(self, config: Optional[PostgreSQLConfig] = None, *, dry_run: bool = False) -> None:
-        self.config = config if config is not None else PostgreSQLConfig.from_env()
-        self.dry_run = dry_run
 
     # ------------------------------------------------------------------
     # inspection
@@ -147,62 +241,17 @@ class PostgresMate:
 
         db_name = normalize_identifier(db_name, "database")
         db_user = normalize_identifier(db_user, "role")
-        _require_password(db_password, db_user)
+        require_password(db_password, db_user)
 
         self._preflight(db_name, db_user)
 
-        role_statements: List[Statement] = [
-            (
-                sql.SQL("CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN").format(
-                    role=sql.Identifier(db_name)
-                ),
-                None,
-            ),
-            (
-                # The password is a bound parameter, so it never becomes part of the
-                # statement text and cannot leak through logs or a traceback.
-                # psycopg2 interpolates client side, which is why this works in DDL
-                # (psycopg3 and asyncpg bind server side and would reject it).
-                sql.SQL(
-                    "CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN ENCRYPTED PASSWORD %s"
-                ).format(role=sql.Identifier(db_user)),
-                (db_password,),
-            ),
-            (
-                sql.SQL("GRANT {group} TO {member}").format(
-                    group=sql.Identifier(db_name), member=sql.Identifier(db_user)
-                ),
-                None,
-            ),
-        ]
-
-        database_statements: List[Statement] = [
-            (
-                sql.SQL("CREATE DATABASE {database} WITH OWNER = {owner}").format(
-                    database=sql.Identifier(db_name), owner=sql.Identifier(db_user)
-                ),
-                None,
-            ),
-            (
-                sql.SQL("REVOKE ALL ON DATABASE {database} FROM {public}").format(
-                    database=sql.Identifier(db_name), public=PUBLIC_ROLE
-                ),
-                None,
-            ),
-        ]
+        role_statements = statements.owner_and_login_role_statements(db_name, db_user, db_password)
+        database_statements = statements.create_database_statements(db_name, db_user)
+        owner_grant = statements.owner_grant_all_on_public_schema(db_user)
+        schema_statements = statements.public_schema_create_statements(db_name, db_user)
 
         if self.dry_run:
-            planned = list(role_statements)
-            planned += database_statements
-            planned += [
-                (
-                    sql.SQL("GRANT ALL ON SCHEMA {schema} TO {role} WITH GRANT OPTION").format(
-                        schema=PUBLIC_SCHEMA, role=sql.Identifier(db_user)
-                    ),
-                    None,
-                )
-            ]
-            planned += self._public_schema_statements(db_name, db_user)
+            planned: List[Statement] = [*role_statements, *database_statements, owner_grant, *schema_statements]
             # Borrow a cursor purely so the statements render as readable SQL.
             with self._admin_connection() as cursor:
                 self._announce(planned, cursor)
@@ -231,17 +280,7 @@ class PostgresMate:
 
         # The owner has to hand out rights on its own public schema itself.
         with self._connection(db_name, db_user, db_password) as cursor:
-            self._execute_all(
-                cursor,
-                [
-                    (
-                        sql.SQL("GRANT ALL ON SCHEMA {schema} TO {role} WITH GRANT OPTION").format(
-                            schema=PUBLIC_SCHEMA, role=sql.Identifier(db_user)
-                        ),
-                        None,
-                    )
-                ],
-            )
+            self._execute_all(cursor, [owner_grant])
         self.grant_public_schema_rights(db_name, db_user)
 
         return CreatedDatabase(
@@ -262,7 +301,7 @@ class PostgresMate:
         db_user = normalize_identifier(db_user, "role")
 
         with self._admin_connection(database=db_name) as cursor:
-            self._execute_all(cursor, self._public_schema_statements(db_name, db_user))
+            self._execute_all(cursor, statements.public_schema_create_statements(db_name, db_user))
 
     def grant_shared_access(self, role: str) -> None:
         """Grants a role read-only access to the shared database.
@@ -276,14 +315,8 @@ class PostgresMate:
 
         role = normalize_identifier(role, "role")
 
-        connect_statement: Statement = (
-            sql.SQL("GRANT CONNECT ON DATABASE {shared} TO {role}").format(
-                shared=sql.Identifier(self.config.shared_db), role=sql.Identifier(role)
-            ),
-            None,
-        )
         with self._admin_connection() as cursor:
-            self._execute_all(cursor, [connect_statement])
+            self._execute_all(cursor, [statements.grant_connect_statement(self.config.shared_db, role)])
 
         self._grant_shared_readonly(role)
 
@@ -306,19 +339,10 @@ class PostgresMate:
 
         user_name = normalize_identifier(user_name or self.config.shared_user_readonly, "role")
         password = password if password is not None else self.config.shared_user_readonly_password
-        _require_password(password, user_name)
-
-        statements: List[Statement] = [
-            (
-                sql.SQL(
-                    "CREATE ROLE {role} NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN ENCRYPTED PASSWORD %s"
-                ).format(role=sql.Identifier(user_name)),
-                (password,),
-            ),
-        ]
+        require_password(password, user_name)
 
         with self._admin_connection() as cursor:
-            self._execute_all(cursor, statements)
+            self._execute_all(cursor, [statements.login_role_statement(user_name, password)])
 
         self.grant_shared_access(user_name)
         logger.info("Read-only role '%s' was created", user_name)
@@ -328,23 +352,8 @@ class PostgresMate:
     def harden_shared_schema(self) -> None:
         """Stops everyone but the shared owner from creating objects in the shared schema."""
 
-        statements: List[Statement] = [
-            (
-                sql.SQL("REVOKE CREATE ON SCHEMA {schema} FROM {public}").format(
-                    schema=PUBLIC_SCHEMA, public=PUBLIC_ROLE
-                ),
-                None,
-            ),
-            (
-                sql.SQL("GRANT CREATE ON SCHEMA {schema} TO {role}").format(
-                    schema=PUBLIC_SCHEMA, role=sql.Identifier(self.config.shared_user)
-                ),
-                None,
-            ),
-        ]
-
         with self._admin_connection(database=self.config.shared_db) as cursor:
-            self._execute_all(cursor, statements)
+            self._execute_all(cursor, statements.harden_shared_schema_statements(self.config.shared_user))
 
     def create_shared_db(self) -> CreatedDatabase:
         """Creates the shared database and its owner, then hardens its schema.
@@ -366,133 +375,3 @@ class PostgresMate:
         logger.info("Shared database '%s' was initialised", self.config.shared_db)
 
         return created
-
-    # ------------------------------------------------------------------
-    # internals
-    # ------------------------------------------------------------------
-
-    def _admin_connection(self, database: Optional[str] = None, autocommit: bool = True):
-        """Opens a connection as the administrative role."""
-
-        return connect(
-            self.config,
-            database=database or self.config.database,
-            user=self.config.admin_user,
-            password=self.config.admin_password,
-            autocommit=autocommit,
-        )
-
-    def _connection(self, database: str, user: str, password: str, autocommit: bool = True):
-        """Opens a connection as an arbitrary role."""
-
-        return connect(self.config, database=database, user=user, password=password, autocommit=autocommit)
-
-    def _preflight(self, db_name: str, db_user: str) -> None:
-        """Fails early on the two common collisions, before anything is created."""
-
-        with self._admin_connection() as cursor:
-            if self._database_exists(cursor, db_name):
-                raise DatabaseAlreadyExistsException(f"Database '{db_name}' already exists")
-            for role in (db_name, db_user):
-                if self._role_exists(cursor, role):
-                    raise DBUserAlreadyExistsException(f"Role '{role}' already exists")
-
-    @staticmethod
-    def _database_exists(cursor, name: str) -> bool:
-        cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (name,))
-        return cursor.fetchone() is not None
-
-    @staticmethod
-    def _role_exists(cursor, name: str) -> bool:
-        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s;", (name,))
-        return cursor.fetchone() is not None
-
-    def _public_schema_statements(self, db_name: str, db_user: str) -> List[Statement]:
-        return [
-            (
-                sql.SQL("GRANT CREATE ON SCHEMA {schema} TO {role}").format(
-                    schema=PUBLIC_SCHEMA, role=sql.Identifier(role)
-                ),
-                None,
-            )
-            for role in (db_name, db_user)
-        ]
-
-    @staticmethod
-    def _shared_readonly_statements(role: str) -> List[Statement]:
-        return [
-            (
-                sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO {role}").format(
-                    schema=PUBLIC_SCHEMA, role=sql.Identifier(role)
-                ),
-                None,
-            ),
-            (
-                sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON TABLES TO {role}").format(
-                    schema=PUBLIC_SCHEMA, role=sql.Identifier(role)
-                ),
-                None,
-            ),
-        ]
-
-    def _grant_shared_readonly(self, role: str) -> None:
-        """Grants SELECT on the shared schema. Only its owner may do this."""
-
-        with self._connection(self.config.shared_db, self.config.shared_user, self.config.shared_password) as cursor:
-            self._execute_all(cursor, self._shared_readonly_statements(role))
-
-    def _drop_roles_quietly(self, roles: Sequence[str]) -> None:
-        """Best effort cleanup of roles this call created; never masks the original error."""
-
-        try:
-            with self._admin_connection() as cursor:
-                for role in roles:
-                    cursor.execute(sql.SQL("DROP ROLE IF EXISTS {role}").format(role=sql.Identifier(role)))
-            logger.info("Rolled back the roles %s after a failed database creation", ", ".join(roles))
-        except DBMateException as ex:
-            logger.warning("Could not roll back the roles %s: %s", ", ".join(roles), ex)
-
-    def _execute_all(self, cursor, statements: Iterable[Statement]) -> None:
-        if self.dry_run:
-            self._announce(statements, cursor)
-            return
-        for statement, params in statements:
-            logger.debug("Executing: %s", _render(statement, cursor))
-            cursor.execute(statement, params)
-
-    @staticmethod
-    def _announce(statements: Iterable[Statement], cursor=None) -> None:
-        """Reports statements that a dry run is skipping."""
-
-        for statement, _ in statements:
-            # No square brackets: Rich would read them as markup. No wrapping either,
-            # so a statement stays on one line and can be copied out as-is.
-            cprint(f"dry-run: {_render(statement, cursor)}", style="yellow", soft_wrap=True, log_level="info")
-
-
-def _render(statement: sql.Composable, cursor) -> str:
-    """Renders a statement for display.
-
-    Bound parameters stay as ``%s``, so a password is never rendered.
-
-    Args:
-        statement (sql.Composable): the statement to render
-        cursor: a live cursor, or ``None`` when there is none at hand
-
-    Returns:
-        str: the SQL text, or its repr if it cannot be rendered without a connection
-    """
-
-    if cursor is None:
-        return repr(statement)
-    try:
-        return statement.as_string(cursor)
-    except (TypeError, AttributeError):  # pragma: no cover - needs a live connection
-        return repr(statement)
-
-
-def _require_password(password: Optional[str], role: str) -> None:
-    """Rejects an empty password before it reaches the server."""
-
-    if not password:
-        raise DBMateException(f"A password is required for the role '{role}'")

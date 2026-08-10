@@ -11,27 +11,8 @@ import psycopg2
 from psycopg2.extensions import cursor as Psycopg2Cursor
 
 from dbmate.configs import logger
-from dbmate.exceptions import DBMateException, exception_for_pgcode
 from dbmate.postgresql.configs import PostgreSQLConfig
-
-
-def translate_error(error: psycopg2.Error, message: str) -> DBMateException:
-    """Maps a driver error onto the matching dbmate exception.
-
-    Args:
-        error (psycopg2.Error): the original driver error
-        message (str): context describing what dbmate was trying to do
-
-    Returns:
-        DBMateException: an instance of the most specific matching subclass
-    """
-
-    pgcode = getattr(error, "pgcode", None)
-    pgerror = getattr(error, "pgerror", None)
-    exception_class = exception_for_pgcode(pgcode)
-    details = (pgerror or str(error)).strip()
-
-    return exception_class(f"{message}: {details}", pgcode=pgcode, pgerror=pgerror)
+from dbmate.postgresql.helpers import translate_error
 
 
 @contextmanager

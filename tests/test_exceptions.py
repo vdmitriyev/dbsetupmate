@@ -14,7 +14,7 @@ from dbmate.exceptions import (
     InsufficientPrivilegeException,
     exception_for_pgcode,
 )
-from dbmate.postgresql.connection import translate_error
+from dbmate.postgresql.helpers import translate_error
 from tests.fakes import FakeError
 
 

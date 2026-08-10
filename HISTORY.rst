@@ -2,6 +2,16 @@
 History
 =======
 
+0.5.1 (2026-08-10)
+------------------
+
+* Internal refactor only; the public API and CLI are unchanged. ``manager.py``
+  was split into a ``BasePostgresMate`` parent (the internals) and
+  ``PostgresMate`` (the public API), SQL construction moved to
+  ``dbmate.postgresql.statements``, and the ``translate_error`` /
+  ``render_statement`` / ``require_password`` helpers moved to
+  ``dbmate.postgresql.helpers``.
+
 0.5.0 (2026-08-10)
 ------------------
 
