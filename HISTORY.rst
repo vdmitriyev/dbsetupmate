@@ -2,6 +2,13 @@
 History
 =======
 
+0.7.0 (2026-08-10)
+------------------
+
+* **Breaking:** the ``database`` command group is renamed to ``postgresql``
+  (hidden alias ``db`` -> ``pg``). The old names no longer work.
+* Added ``dbsmate`` as a console-script alias for ``dbsetupmate``.
+
 0.6.0 (2026-08-10)
 ------------------
 

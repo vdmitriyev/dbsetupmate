@@ -8,7 +8,7 @@ from rich.table import Table
 from rich.text import Text
 from typing_extensions import Annotated
 
-from dbsetupmate.commands import database as database_module
+from dbsetupmate.commands import postgresql as postgresql_module
 from dbsetupmate.commands import self as self_module
 from dbsetupmate.configs import console, cprint, settings
 from dbsetupmate.logger import configure_logging
@@ -22,8 +22,8 @@ app = typer.Typer(
 )
 
 
-app.add_typer(database_module.app, name="database")
-app.add_typer(database_module.app, name="db", hidden=True)
+app.add_typer(postgresql_module.app, name="postgresql")
+app.add_typer(postgresql_module.app, name="pg", hidden=True)
 app.add_typer(self_module.app, name="self")
 
 

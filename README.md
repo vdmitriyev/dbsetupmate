@@ -20,49 +20,49 @@ Copy `sample.env` to `.env` and adjust the `POSTGRESQL_*` values.
   ```
 * Create a database together with its owner and login user
   ```
-  dbsetupmate --env-file .env db create-db --new-db-name course_db_01 --new-db-user course_user_01
+  dbsetupmate --env-file .env postgresql create-db --new-db-name course_db_01 --new-db-user course_user_01
   ```
 * Next free generated database name
   ```
-  dbsetupmate --env-file .env db show-next-db-name
+  dbsetupmate --env-file .env postgresql show-next-db-name
   ```
 * Create the shared database
   ```
-  dbsetupmate --env-file .env db create-shared-db
+  dbsetupmate --env-file .env postgresql create-shared-db
   ```
 * Read-only user for the shared database
   ```
-  dbsetupmate --env-file .env db create-shared-user-readonly
+  dbsetupmate --env-file .env postgresql create-shared-user-readonly
   ```
 * Grant an existing user read-only access to the shared database
   ```
-  dbsetupmate --env-file .env db grant-shared-access --user-name course_user_01
+  dbsetupmate --env-file .env postgresql grant-shared-access --user-name course_user_01
   ```
 * Revoke that access again
   ```
-  dbsetupmate --env-file .env db revoke-shared-access --user-name course_user_01
+  dbsetupmate --env-file .env postgresql revoke-shared-access --user-name course_user_01
   ```
 * List the databases, the users and the resolved settings
   ```
-  dbsetupmate --env-file .env db show-dbs
-  dbsetupmate --env-file .env db show-users
-  dbsetupmate --env-file .env db show-config
+  dbsetupmate --env-file .env postgresql show-dbs
+  dbsetupmate --env-file .env postgresql show-users
+  dbsetupmate --env-file .env postgresql show-config
   ```
 * Change a user password
   ```
-  dbsetupmate --env-file .env db set-user-password --user-name course_user_01
+  dbsetupmate --env-file .env postgresql set-user-password --user-name course_user_01
   ```
 * Drop a database together with its roles
   ```
-  dbsetupmate --env-file .env db drop-db --db-name course_db_01 --db-user course_user_01
+  dbsetupmate --env-file .env postgresql drop-db --db-name course_db_01 --db-user course_user_01
   ```
 * Drop a user
   ```
-  dbsetupmate --env-file .env db drop-user --user-name course_user_01
+  dbsetupmate --env-file .env postgresql drop-user --user-name course_user_01
   ```
 * There is also a `dry-run` option for all commands
   ```
-    dbsetupmate --env-file .env --dry-run db create-db
+    dbsetupmate --env-file .env --dry-run postgresql create-db
     ```
 
 P.S. The password is prompted for when `--new-db-password` or `--password` is omitted.
