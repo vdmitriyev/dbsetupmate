@@ -3,6 +3,7 @@
 *.env
 CLAUDE.md
 compose-claude.yaml
+uv.lock
 
 # folders
 .venv/*
