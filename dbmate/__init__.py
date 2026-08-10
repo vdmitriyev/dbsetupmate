@@ -19,10 +19,18 @@ _EXPORTS: Dict[str, str] = {
     "PostgreSQLConfig": "dbmate.postgresql.configs",
     "CreatedDatabase": "dbmate.postgresql.models",
     "DatabaseNames": "dbmate.postgresql.models",
+    "ManagedDatabase": "dbmate.postgresql.models",
     "create_db": "dbmate.postgresql.functions",
     "create_shared_db": "dbmate.postgresql.functions",
-    "create_user_readonly": "dbmate.postgresql.functions",
+    "create_shared_user_readonly": "dbmate.postgresql.functions",
+    "drop_db": "dbmate.postgresql.functions",
+    "drop_user": "dbmate.postgresql.functions",
     "grant_shared_access": "dbmate.postgresql.functions",
+    "list_dbs": "dbmate.postgresql.functions",
+    "list_users": "dbmate.postgresql.functions",
+    "revoke_shared_access": "dbmate.postgresql.functions",
+    # nosec B105: the value is the defining module, not a password.
+    "set_user_password": "dbmate.postgresql.functions",  # nosec B105
     "show_next_db_name": "dbmate.postgresql.functions",
     "DBMateException": "dbmate.exceptions",
     "DBConnectionException": "dbmate.exceptions",
@@ -75,9 +83,15 @@ if TYPE_CHECKING:  # pragma: no cover - for type checkers and IDEs only
     from dbmate.postgresql.functions import (
         create_db,
         create_shared_db,
-        create_user_readonly,
+        create_shared_user_readonly,
+        drop_db,
+        drop_user,
         grant_shared_access,
+        list_dbs,
+        list_users,
+        revoke_shared_access,
+        set_user_password,
         show_next_db_name,
     )
     from dbmate.postgresql.manager import PostgresMate
-    from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
+    from dbmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase

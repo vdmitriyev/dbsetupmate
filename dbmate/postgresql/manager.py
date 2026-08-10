@@ -12,15 +12,17 @@ from typing import Iterable, List, Optional, Sequence
 from dbmate.configs import cprint, logger
 from dbmate.exceptions import (
     DatabaseAlreadyExistsException,
+    DatabaseNotExistsException,
     DBMateException,
     DBUserAlreadyExistsException,
+    DBUserNotExistsException,
 )
 from dbmate.postgresql import statements
 from dbmate.postgresql.configs import PostgreSQLConfig
 from dbmate.postgresql.connection import connect
 from dbmate.postgresql.helpers import render_statement, require_password
 from dbmate.postgresql.identifiers import normalize_identifier
-from dbmate.postgresql.models import CreatedDatabase, DatabaseNames
+from dbmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase
 from dbmate.postgresql.statements import Statement
 
 
@@ -86,6 +88,26 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
         cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s;", (name,))
         return cursor.fetchone() is not None
 
+    def _prefixed_rows(self, query: str, prefix: str) -> List[tuple]:
+        """Runs an anchored prefix match as the admin and returns every row.
+
+        The three catalogue queries dbmate makes all match ``left(<name>::text, n)``
+        against a prefix, so they share the bound ``length``/``prefix`` parameters
+        rather than each interpolating a ``LIKE`` pattern of their own.
+
+        Args:
+            query (str): a query taking the ``%(length)s`` and ``%(prefix)s`` parameters
+            prefix (str): the prefix to match, including its trailing separator
+
+        Returns:
+            List[tuple]: the rows the query produced
+        """
+
+        with self._admin_connection() as cursor:
+            cursor.execute(query, {"length": len(prefix), "prefix": prefix})
+
+            return cursor.fetchall()
+
     # ------------------------------------------------------------------
     # shared read-only access, cleanup
     # ------------------------------------------------------------------
@@ -96,13 +118,18 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
         with self._connection(self.config.shared_db, self.config.shared_user, self.config.shared_password) as cursor:
             self._execute_all(cursor, statements.shared_readonly_statements(role))
 
+    def _revoke_shared_readonly(self, role: str) -> None:
+        """Takes SELECT on the shared schema back. Only its owner may do this."""
+
+        with self._connection(self.config.shared_db, self.config.shared_user, self.config.shared_password) as cursor:
+            self._execute_all(cursor, statements.shared_readonly_revoke_statements(role))
+
     def _drop_roles_quietly(self, roles: Sequence[str]) -> None:
         """Best effort cleanup of roles this call created; never masks the original error."""
 
         try:
             with self._admin_connection() as cursor:
-                for role in roles:
-                    cursor.execute(statements.drop_role_statement(role))
+                self._execute_all(cursor, [statements.drop_role_statement(role) for role in roles])
             logger.info("Rolled back the roles %s after a failed database creation", ", ".join(roles))
         except DBMateException as ex:
             logger.warning("Could not roll back the roles %s: %s", ", ".join(roles), ex)
@@ -190,12 +217,10 @@ class PostgresMate(BasePostgresMate):
         """
 
         prefix = f"{self.config.db_prefix}_"
-        with self._admin_connection() as cursor:
-            cursor.execute(
-                "SELECT datname FROM pg_database WHERE left(datname::text, %(length)s) = %(prefix)s;",
-                {"length": len(prefix), "prefix": prefix},
-            )
-            rows = cursor.fetchall()
+        rows = self._prefixed_rows(
+            "SELECT datname FROM pg_database WHERE left(datname::text, %(length)s) = %(prefix)s;",
+            prefix,
+        )
 
         orders = [int(suffix) for suffix in (str(row[0])[len(prefix) :] for row in rows) if suffix.isdigit()]
         order = max(orders, default=0) + 1
@@ -205,6 +230,38 @@ class PostgresMate(BasePostgresMate):
             user=f"{self.config.user_prefix}_{order:02d}",
             order=order,
         )
+
+    def list_dbs(self) -> List[ManagedDatabase]:
+        """Lists the databases built from the configured prefix, with their owners.
+
+        Only databases whose name starts with ``<db_prefix>_`` are reported, so the
+        server's own databases and anything created outside dbmate stay out of the way.
+
+        Returns:
+            List[ManagedDatabase]: the matching databases, ordered by name
+        """
+
+        rows = self._prefixed_rows(
+            "SELECT datname, pg_get_userbyid(datdba) FROM pg_database "
+            "WHERE left(datname::text, %(length)s) = %(prefix)s ORDER BY datname;",
+            f"{self.config.db_prefix}_",
+        )
+
+        return [ManagedDatabase(database=str(row[0]), owner=str(row[1])) for row in rows]
+
+    def list_users(self) -> List[str]:
+        """Lists the roles built from the configured user prefix.
+
+        Returns:
+            List[str]: the matching role names, ordered by name
+        """
+
+        rows = self._prefixed_rows(
+            "SELECT rolname FROM pg_roles WHERE left(rolname::text, %(length)s) = %(prefix)s ORDER BY rolname;",
+            f"{self.config.user_prefix}_",
+        )
+
+        return [str(row[0]) for row in rows]
 
     # ------------------------------------------------------------------
     # provisioning
@@ -320,8 +377,52 @@ class PostgresMate(BasePostgresMate):
 
         self._grant_shared_readonly(role)
 
-    def create_user_readonly(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
-        """Creates a role with read-only access to the shared database.
+    def revoke_shared_access(self, role: str) -> None:
+        """Takes a role's read-only access to the shared database back.
+
+        The exact inverse of :meth:`grant_shared_access`, run in reverse order:
+        the SELECT grants go first (as the shared owner, the only role that may),
+        then CONNECT (as admin). The role itself is left in place.
+
+        Args:
+            role (str): the role to revoke shared access from
+        """
+
+        role = normalize_identifier(role, "role")
+
+        self._revoke_shared_readonly(role)
+
+        with self._admin_connection() as cursor:
+            self._execute_all(cursor, [statements.revoke_connect_statement(self.config.shared_db, role)])
+
+    def set_user_password(self, user_name: str, password: str) -> str:
+        """Replaces the password of an existing login role.
+
+        Args:
+            user_name (str): the role to change
+            password (str): its new password
+
+        Returns:
+            str: the normalised role name
+
+        Raises:
+            DBUserNotExistsException: if the role does not exist
+            DBMateException: if the password is empty, or for any other failure
+        """
+
+        user_name = normalize_identifier(user_name, "role")
+        require_password(password, user_name)
+
+        # No existence check: ALTER ROLE on a missing role answers with SQLSTATE
+        # 42704, which already maps onto DBUserNotExistsException.
+        with self._admin_connection() as cursor:
+            self._execute_all(cursor, [statements.alter_role_password_statement(user_name, password)])
+        logger.info("The password of the role '%s' was changed", user_name)
+
+        return user_name
+
+    def create_shared_user_readonly(self, user_name: Optional[str] = None, password: Optional[str] = None) -> str:
+        """Creates a login role and grants it read-only access to the shared database.
 
         Args:
             user_name (str, optional): role to create. Defaults to the configured
@@ -375,3 +476,81 @@ class PostgresMate(BasePostgresMate):
         logger.info("Shared database '%s' was initialised", self.config.shared_db)
 
         return created
+
+    # ------------------------------------------------------------------
+    # removal
+    # ------------------------------------------------------------------
+
+    def drop_db(self, db_name: str, db_user: Optional[str] = None) -> None:
+        """Drops a database, its owning group role and, when given, its login role.
+
+        Open sessions are terminated first, otherwise PostgreSQL refuses to drop a
+        database anyone is still connected to.
+
+        Args:
+            db_name (str): the database to drop, and the name of its owning group role
+            db_user (str, optional): the login role to drop with it. It is not
+                derivable from the database name - :meth:`create_db` takes it as a
+                separate argument - so it has to be named explicitly.
+
+        Raises:
+            InvalidIdentifierException: if a name is not a usable identifier
+            DatabaseNotExistsException: if the database is not there
+            DBMateException: for any other failure
+
+        Note:
+            This is the one operation that destroys data, and nothing else in
+            dbmate calls it. A role that still owns objects in *another* database
+            cannot be dropped; that failure surfaces rather than being swallowed.
+        """
+
+        db_name = normalize_identifier(db_name, "database")
+        db_user = normalize_identifier(db_user, "role") if db_user else None
+
+        if not self.database_exists(db_name):
+            raise DatabaseNotExistsException(f"Database '{db_name}' does not exist")
+
+        # DROP DATABASE cannot run inside a transaction, hence the autocommitting
+        # connection. Both statements go through _execute_all so that a dry run
+        # reports them instead of terminating live sessions.
+        with self._admin_connection() as cursor:
+            self._execute_all(
+                cursor,
+                [
+                    statements.terminate_backends_statement(db_name),
+                    statements.drop_database_statement(db_name),
+                ],
+            )
+        logger.info("Database '%s' was dropped", db_name)
+
+        # The login role is a member of the group role, so it goes first.
+        roles = [role for role in (db_user, db_name) if role]
+        with self._admin_connection() as cursor:
+            self._execute_all(cursor, [statements.drop_role_statement(role) for role in roles])
+        logger.info("The roles %s were dropped", ", ".join(roles))
+
+    def drop_user(self, user_name: str) -> None:
+        """Drops a role.
+
+        Args:
+            user_name (str): the role to drop
+
+        Raises:
+            InvalidIdentifierException: if the name is not a usable identifier
+            DBUserNotExistsException: if the role is not there
+            DBMateException: if the role still owns objects, or for any other failure
+
+        Note:
+            dbmate deliberately does not run ``DROP OWNED`` or ``REASSIGN OWNED``
+            first: silently reassigning someone else's data is not a decision a
+            provisioning tool should make. Drop the databases the role owns first.
+        """
+
+        user_name = normalize_identifier(user_name, "role")
+
+        if not self.user_exists(user_name):
+            raise DBUserNotExistsException(f"Role '{user_name}' does not exist")
+
+        with self._admin_connection() as cursor:
+            self._execute_all(cursor, [statements.drop_role_statement(user_name)])
+        logger.info("Role '%s' was dropped", user_name)

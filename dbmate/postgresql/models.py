@@ -19,6 +19,19 @@ class DatabaseNames:
 
 
 @dataclass(frozen=True)
+class ManagedDatabase:
+    """A database built from the configured prefix, as reported by ``list_dbs``.
+
+    Attributes:
+        database (str): the database name
+        owner (str): the role that owns it
+    """
+
+    database: str
+    owner: str
+
+
+@dataclass(frozen=True)
 class CreatedDatabase:
     """What a call to ``create_db`` actually produced.
 

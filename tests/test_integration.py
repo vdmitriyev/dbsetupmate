@@ -15,8 +15,10 @@ import pytest
 
 from dbmate.exceptions import (
     DatabaseAlreadyExistsException,
+    DatabaseNotExistsException,
     DBConnectionException,
     DBMateException,
+    DBUserNotExistsException,
     InsufficientPrivilegeException,
 )
 from dbmate.postgresql.configs import PostgreSQLConfig
@@ -128,7 +130,7 @@ def test_a_readonly_user_can_read_the_shared_database(mate, live_config):
         cursor.execute("CREATE TABLE IF NOT EXISTS shared_data (id integer);")
         cursor.execute("INSERT INTO shared_data VALUES (42);")
 
-    mate.create_user_readonly(READONLY_USER, READONLY_PASSWORD)
+    mate.create_shared_user_readonly(READONLY_USER, READONLY_PASSWORD)
 
     with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD) as cursor:
         cursor.execute("SELECT id FROM shared_data;")
@@ -149,3 +151,69 @@ def test_a_wrong_password_is_reported_as_a_connection_error(live_config):
     with pytest.raises(DBConnectionException):
         with connect(live_config, database=live_config.shared_db, user=DB_USER, password="wrong"):
             pass
+
+
+def test_the_created_database_is_listed_with_its_owner(live_config):
+    mate = PostgresMate(replace(live_config, db_prefix="dbmate_it_db", user_prefix="dbmate_it_user"))
+
+    listed = {item.database: item.owner for item in mate.list_dbs()}
+
+    assert listed[DB_NAME] == DB_USER
+    assert DB_USER in mate.list_users()
+
+
+def test_revoking_shared_access_closes_the_shared_database_again(mate, live_config):
+    mate.revoke_shared_access(READONLY_USER)
+
+    with pytest.raises(DBMateException):
+        with connect(
+            live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD
+        ) as cursor:
+            cursor.execute("SELECT id FROM shared_data;")
+
+    # Granting again has to restore the access the revoke took away.
+    mate.grant_shared_access(READONLY_USER)
+    with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD) as cursor:
+        cursor.execute("SELECT id FROM shared_data;")
+
+        assert cursor.fetchone()[0] == 42
+
+
+def test_a_changed_password_is_the_one_that_works(mate, live_config):
+    mate.set_user_password(READONLY_USER, "dbmate-it-ro-2")
+
+    with pytest.raises(DBConnectionException):
+        with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD):
+            pass
+
+    with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password="dbmate-it-ro-2"):
+        pass
+
+
+def test_changing_the_password_of_a_role_that_is_not_there_is_rejected(mate):
+    with pytest.raises(DBUserNotExistsException):
+        mate.set_user_password("dbmate_it_nobody", "irrelevant")
+
+
+def test_drop_db_removes_the_database_and_both_of_its_roles(mate):
+    # Runs last: it takes away what the earlier tests in this module built.
+    mate.drop_db(DB_NAME, DB_USER)
+
+    assert mate.database_exists(DB_NAME) is False
+    assert mate.user_exists(DB_USER) is False
+    assert mate.user_exists(DB_NAME) is False
+
+    with pytest.raises(DatabaseNotExistsException):
+        mate.drop_db(DB_NAME)
+
+
+def test_drop_user_removes_a_role_once_nothing_depends_on_it(mate):
+    # PostgreSQL refuses to drop a role that still holds privileges somewhere, so
+    # this doubles as a check that revoke_shared_access really removes all of them.
+    mate.revoke_shared_access(READONLY_USER)
+    mate.drop_user(READONLY_USER)
+
+    assert mate.user_exists(READONLY_USER) is False
+
+    with pytest.raises(DBUserNotExistsException):
+        mate.drop_user(READONLY_USER)

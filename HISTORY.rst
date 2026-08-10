@@ -2,6 +2,22 @@
 History
 =======
 
+0.6.0 (2026-08-10)
+------------------
+
+* **Breaking:** ``db create-user-readonly`` -> ``db create-shared-user-readonly``
+  (``create_user_readonly`` -> ``create_shared_user_readonly``). There is no alias.
+
+* Added seven commands, each with a matching ``PostgresMate`` method and a module level
+  function:
+
+  * ``db show-dbs`` (``list_dbs``), ``db show-users`` (``list_users``), ``db show-config``
+  * ``db set-user-password``, ``db revoke-shared-access``
+  * ``db drop-db``, ``db drop-user``
+
+* ``drop-db`` and ``drop-user`` ask for confirmation unless ``--yes`` is given.
+* Added the ``ManagedDatabase`` model, returned by ``list_dbs``.
+
 0.5.1 (2026-08-10)
 ------------------
 

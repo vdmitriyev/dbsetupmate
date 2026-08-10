@@ -5,8 +5,10 @@ from psycopg2 import errorcodes, sql
 
 from dbmate.exceptions import (
     DatabaseAlreadyExistsException,
+    DatabaseNotExistsException,
     DBMateException,
     DBUserAlreadyExistsException,
+    DBUserNotExistsException,
     InvalidIdentifierException,
 )
 from dbmate.postgresql.manager import PostgresMate
@@ -64,6 +66,38 @@ def test_show_next_db_name_query_is_anchored_and_parameterised(mate, server):
     statement = server.executed[0]
     assert "left(datname::text" in statement.text
     assert statement.params == {"length": len("course_db_"), "prefix": "course_db_"}
+
+
+def test_list_dbs_reports_the_prefixed_databases_with_their_owners(mate, server):
+    server.databases = ["course_db_02", "course_db_01", "postgres"]
+    server.database_owners = {"course_db_01": "course_user_01"}
+
+    databases = mate.list_dbs()
+
+    assert [(item.database, item.owner) for item in databases] == [
+        ("course_db_01", "course_user_01"),
+        ("course_db_02", "admin"),
+    ]
+
+
+def test_list_dbs_ignores_databases_outside_the_prefix(mate, server):
+    server.databases = ["postgres", "template1", "unrelated_db_01"]
+
+    assert mate.list_dbs() == []
+
+
+def test_list_users_reports_only_the_prefixed_roles(mate, server):
+    server.roles = ["course_user_02", "course_user_01", "admin", "shared_ro"]
+
+    assert mate.list_users() == ["course_user_01", "course_user_02"]
+
+
+def test_the_listing_queries_are_anchored_and_parameterised(mate, server):
+    mate.list_users()
+
+    statement = server.executed[0]
+    assert "left(rolname::text" in statement.text
+    assert statement.params == {"length": len("course_user_"), "prefix": "course_user_"}
 
 
 # ----------------------------------------------------------------------
@@ -284,7 +318,7 @@ def test_a_dry_run_reports_the_statements_it_skips(config, server, capsys):
 
 
 def test_a_dry_run_readonly_user_executes_no_ddl(config, server):
-    PostgresMate(config, dry_run=True).create_user_readonly()
+    PostgresMate(config, dry_run=True).create_shared_user_readonly()
 
     assert server.ddl() == []
 
@@ -294,15 +328,15 @@ def test_a_dry_run_readonly_user_executes_no_ddl(config, server):
 # ----------------------------------------------------------------------
 
 
-def test_create_user_readonly_defaults_to_the_configured_role(mate, server):
-    created_user = mate.create_user_readonly()
+def test_create_shared_user_readonly_defaults_to_the_configured_role(mate, server):
+    created_user = mate.create_shared_user_readonly()
 
     assert created_user == "shared_ro"
     assert [item for item in server.executed if "LOGIN ENCRYPTED PASSWORD" in item.text][0].params == ("ro-secret",)
 
 
-def test_create_user_readonly_grants_connect_and_select(mate, server):
-    mate.create_user_readonly("reader", "reader-secret")
+def test_create_shared_user_readonly_grants_connect_and_select(mate, server):
+    mate.create_shared_user_readonly("reader", "reader-secret")
 
     ddl = server.ddl_texts()
     assert any("GRANT CONNECT ON DATABASE" in item for item in ddl)
@@ -310,9 +344,9 @@ def test_create_user_readonly_grants_connect_and_select(mate, server):
     assert any("ALTER DEFAULT PRIVILEGES" in item for item in ddl)
 
 
-def test_create_user_readonly_does_not_harden_the_shared_schema(mate, server):
+def test_create_shared_user_readonly_does_not_harden_the_shared_schema(mate, server):
     # Hardening is part of bootstrapping the shared database, not of adding a reader.
-    mate.create_user_readonly("reader", "reader-secret")
+    mate.create_shared_user_readonly("reader", "reader-secret")
 
     assert not [item for item in server.executed if "REVOKE CREATE ON SCHEMA" in item.text]
 
@@ -349,3 +383,161 @@ def test_grant_public_schema_rights_targets_the_new_database(mate, server):
     ddl = server.ddl()
     assert len(ddl) == 2
     assert all(item.database == "course_db_01" and item.user == "admin" for item in ddl)
+
+
+def test_revoke_shared_access_undoes_exactly_what_the_grant_did(mate, server):
+    mate.revoke_shared_access("course_user_01")
+
+    ddl = server.ddl_texts()
+    assert len(ddl) == 3
+    # Reverse of the grant: the SELECT privileges first, CONNECT last.
+    assert "ALTER DEFAULT PRIVILEGES" in ddl[0] and "REVOKE SELECT ON TABLES" in ddl[0]
+    assert "REVOKE SELECT ON ALL TABLES IN SCHEMA" in ddl[1]
+    assert "REVOKE CONNECT ON DATABASE" in ddl[2]
+
+
+def test_the_shared_privileges_are_revoked_by_the_role_that_granted_them(mate, server):
+    mate.revoke_shared_access("course_user_01")
+
+    # Default privileges are recorded per granting role, so only the shared owner
+    # can take them back - admin revoking them would be a silent no-op.
+    revokes = [item for item in server.executed if "ALTER DEFAULT PRIVILEGES" in item.text]
+    assert all(item.database == "shared_db" and item.user == "shared_user" for item in revokes)
+
+    connect_revoke = [item for item in server.executed if "REVOKE CONNECT ON DATABASE" in item.text][0]
+    assert connect_revoke.user == "admin"
+
+
+def test_revoke_shared_access_keeps_the_role_itself(mate, server):
+    mate.revoke_shared_access("course_user_01")
+
+    assert not [item for item in server.executed if "DROP ROLE" in item.text]
+
+
+# ----------------------------------------------------------------------
+# passwords
+# ----------------------------------------------------------------------
+
+
+def test_set_user_password_binds_the_new_password_as_a_parameter(mate, server):
+    changed = mate.set_user_password("course_user_01", "n3w-secret")
+
+    assert changed == "course_user_01"
+    altered = [item for item in server.executed if "ALTER ROLE" in item.text]
+    assert len(altered) == 1
+    assert "ENCRYPTED PASSWORD %s" in altered[0].text
+    assert altered[0].params == ("n3w-secret",)
+    assert all("n3w-secret" not in item.text for item in server.executed)
+
+
+def test_set_user_password_does_not_check_that_the_role_exists(mate, server):
+    # ALTER ROLE answers with SQLSTATE 42704 itself; a preflight would be a
+    # second round trip that adds nothing.
+    mate.set_user_password("course_user_01", "n3w-secret")
+
+    assert not [item for item in server.executed if "FROM pg_roles" in item.text]
+
+
+@pytest.mark.parametrize("password", ["", None])
+def test_set_user_password_rejects_an_empty_password_without_connecting(mate, server, password):
+    with pytest.raises(DBMateException, match="password is required"):
+        mate.set_user_password("course_user_01", password)
+
+    assert server.connections == []
+
+
+# ----------------------------------------------------------------------
+# dropping
+# ----------------------------------------------------------------------
+
+
+def test_drop_db_terminates_the_open_sessions_before_dropping(mate, server):
+    server.databases = ["course_db_01"]
+
+    mate.drop_db("course_db_01", "course_user_01")
+
+    texts = server.texts()
+    terminate = [index for index, text in enumerate(texts) if "pg_terminate_backend" in text][0]
+    dropped = [index for index, text in enumerate(texts) if "DROP DATABASE" in text][0]
+
+    # PostgreSQL refuses to drop a database anyone is still connected to.
+    assert terminate < dropped
+
+
+def test_drop_db_drops_the_login_role_before_the_group_role(mate, server):
+    server.databases = ["course_db_01"]
+
+    mate.drop_db("course_db_01", "course_user_01")
+
+    dropped = [item.text for item in server.executed if "DROP ROLE" in item.text]
+    assert len(dropped) == 2
+    # The login role is a member of the group role, so it goes first.
+    assert "course_user_01" in dropped[0]
+    assert "course_db_01" in dropped[1]
+
+
+def test_drop_db_only_drops_the_group_role_when_no_login_role_is_named(mate, server):
+    server.databases = ["course_db_01"]
+
+    mate.drop_db("course_db_01")
+
+    dropped = [item.text for item in server.executed if "DROP ROLE" in item.text]
+    assert len(dropped) == 1
+    assert "course_db_01" in dropped[0]
+
+
+def test_drop_database_runs_on_an_autocommitting_connection(mate, server):
+    server.databases = ["course_db_01"]
+
+    mate.drop_db("course_db_01")
+
+    dropped = [item for item in server.executed if "DROP DATABASE" in item.text][0]
+    connection = [item for item in server.connections if item.database == dropped.database][-1]
+
+    # DROP DATABASE cannot run inside a transaction block.
+    assert connection.autocommit is True
+
+
+def test_dropping_a_database_that_is_not_there_is_rejected(mate, server):
+    with pytest.raises(DatabaseNotExistsException, match="course_db_01"):
+        mate.drop_db("course_db_01")
+
+    assert server.ddl() == []
+    assert not [item for item in server.executed if "pg_terminate_backend" in item.text]
+
+
+def test_a_dry_run_drops_nothing_and_terminates_nothing(config, server):
+    server.databases = ["course_db_01"]
+
+    PostgresMate(config, dry_run=True).drop_db("course_db_01", "course_user_01")
+
+    # `ddl()` filters SELECTs out, and pg_terminate_backend is one - so the whole
+    # statement log has to be checked, not just the DDL.
+    assert not [item for item in server.executed if "pg_terminate_backend" in item.text]
+    assert server.ddl() == []
+
+
+def test_drop_user_drops_the_role(mate, server):
+    server.roles = ["course_user_01"]
+
+    mate.drop_user("course_user_01")
+
+    ddl = server.ddl_texts()
+    assert len(ddl) == 1
+    assert "DROP ROLE IF EXISTS" in ddl[0] and "course_user_01" in ddl[0]
+
+
+def test_dropping_a_role_that_is_not_there_is_rejected(mate, server):
+    # DROP ROLE IF EXISTS would report success, which reads as "it was dropped".
+    with pytest.raises(DBUserNotExistsException, match="course_user_01"):
+        mate.drop_user("course_user_01")
+
+    assert server.ddl() == []
+
+
+@pytest.mark.parametrize("name", ["", "my-db", "1bad"])
+def test_dropping_an_unusable_name_is_rejected_without_connecting(mate, server, name):
+    with pytest.raises(InvalidIdentifierException):
+        mate.drop_db(name)
+
+    assert server.connections == []

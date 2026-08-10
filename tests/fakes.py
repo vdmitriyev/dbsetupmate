@@ -129,6 +129,7 @@ class FakeServer:
     Attributes:
         databases: database names the server reports as existing
         roles: role names the server reports as existing
+        database_owners: database name -> owning role, defaulting to ``admin``
         statement_errors: substring of a statement -> error raised for it
         connect_errors: database name -> error raised instead of connecting
         executed: every statement received, in order
@@ -137,6 +138,7 @@ class FakeServer:
 
     databases: List[str] = field(default_factory=list)
     roles: List[str] = field(default_factory=list)
+    database_owners: Dict[str, str] = field(default_factory=dict)
     statement_errors: Dict[str, psycopg2.Error] = field(default_factory=dict)
     connect_errors: Dict[str, psycopg2.Error] = field(default_factory=dict)
     executed: List[Executed] = field(default_factory=list)
@@ -166,6 +168,14 @@ class FakeServer:
             return [(1,)] if params[0] in self.roles else []
         if "SELECT datname FROM pg_database WHERE left(" in text:
             return [(name,) for name in self.databases if name.startswith(params["prefix"])]
+        if "pg_get_userbyid(datdba)" in text:
+            return [
+                (name, self.database_owners.get(name, "admin"))
+                for name in sorted(self.databases)
+                if name.startswith(params["prefix"])
+            ]
+        if "SELECT rolname FROM pg_roles WHERE left(" in text:
+            return [(name,) for name in sorted(self.roles) if name.startswith(params["prefix"])]
 
         return []
 

@@ -137,6 +137,49 @@ def login_role_statement(user_name: str, password: str) -> Statement:
     )
 
 
+def alter_role_password_statement(role: str, password: str) -> Statement:
+    """Replaces the password of an existing login role."""
+
+    return (
+        sql.SQL("ALTER ROLE {role} ENCRYPTED PASSWORD %s").format(role=sql.Identifier(role)),
+        (password,),
+    )
+
+
+def shared_readonly_revoke_statements(role: str) -> List[Statement]:
+    """Undoes :func:`shared_readonly_statements`, in reverse order.
+
+    The default privileges go first: they are recorded per granting role, so this
+    has to run as the same role that granted them - the shared owner.
+    """
+
+    return [
+        (
+            sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE SELECT ON TABLES FROM {role}").format(
+                schema=PUBLIC_SCHEMA, role=sql.Identifier(role)
+            ),
+            None,
+        ),
+        (
+            sql.SQL("REVOKE SELECT ON ALL TABLES IN SCHEMA {schema} FROM {role}").format(
+                schema=PUBLIC_SCHEMA, role=sql.Identifier(role)
+            ),
+            None,
+        ),
+    ]
+
+
+def revoke_connect_statement(shared_db: str, role: str) -> Statement:
+    """Closes the shared database to a role."""
+
+    return (
+        sql.SQL("REVOKE CONNECT ON DATABASE {shared} FROM {role}").format(
+            shared=sql.Identifier(shared_db), role=sql.Identifier(role)
+        ),
+        None,
+    )
+
+
 def harden_shared_schema_statements(schema_owner: str) -> List[Statement]:
     """Stops everyone but the shared owner from creating objects in the shared schema."""
 
@@ -154,7 +197,36 @@ def harden_shared_schema_statements(schema_owner: str) -> List[Statement]:
     ]
 
 
-def drop_role_statement(role: str) -> sql.Composable:
-    """Drops a role if it exists (best-effort cleanup)."""
+def drop_role_statement(role: str) -> Statement:
+    """Drops a role if it exists."""
 
-    return sql.SQL("DROP ROLE IF EXISTS {role}").format(role=sql.Identifier(role))
+    return (
+        sql.SQL("DROP ROLE IF EXISTS {role}").format(role=sql.Identifier(role)),
+        None,
+    )
+
+
+def terminate_backends_statement(db_name: str) -> Statement:
+    """Disconnects every other session from a database, so that it can be dropped.
+
+    Note:
+        This is a ``SELECT`` but it is not read-only - it must go through
+        ``_execute_all`` like any other statement, or a dry run would cut live
+        connections while claiming to have changed nothing.
+    """
+
+    return (
+        sql.SQL(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()"
+        ),
+        (db_name,),
+    )
+
+
+def drop_database_statement(db_name: str) -> Statement:
+    """Drops a database if it exists."""
+
+    return (
+        sql.SQL("DROP DATABASE IF EXISTS {database}").format(database=sql.Identifier(db_name)),
+        None,
+    )
