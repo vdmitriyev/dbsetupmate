@@ -13,7 +13,7 @@ from dbsetupmate.exceptions import DBSetupMateException
 from dbsetupmate.postgresql.configs import PostgreSQLConfig
 from dbsetupmate.postgresql.manager import PostgresMate
 
-app = typer.Typer(help="Manage database.")
+app = typer.Typer(help="Manage PostgreSQL database.")
 
 #: What a secret reads as in `show-config`.
 MASKED = "***"

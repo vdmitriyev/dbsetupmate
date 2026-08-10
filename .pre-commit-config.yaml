@@ -34,7 +34,7 @@ repos:
     - id: text-unicode-replacement-char
 
 -   repo: https://github.com/psf/black
-    rev: 25.9.0
+    rev: 26.5.1
     hooks:
     - id: black
       args: ["--line-length", "120"]
@@ -46,7 +46,7 @@ repos:
 #        args: ["--profile", "black", "--filter-files"]
 
 -   repo: https://github.com/gitleaks/gitleaks
-    rev: v8.28.0
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 

@@ -68,7 +68,7 @@ Copy `sample.env` to `.env` and adjust the `POSTGRESQL_*` values.
 P.S. The password is prompted for when `--new-db-password` or `--password` is omitted.
 Commands exit `1` on failure. `drop-db` and `drop-user` ask for confirmation; pass `--yes` to skip it.
 
-## Using Python package
+## Example how to use it as a Python Package: basics
 
 Here is a example how to use `dbsetupmate` as Python library.
 
@@ -86,14 +86,19 @@ except DBSetupMateException as ex:
 `PostgreSQLConfig.from_env()` reads the `POSTGRESQL_*` variables instead. Failures raise a
 subclass of `DBSetupMateException`, never a `bool`.
 
-A fuller workflow — create a user, ensure the shared database exists, and grant that user
+## Example how to use it as a Python Package: full workflow
+
+A full workflow — create a user, ensure the shared database exists, and grant that user
 read-only access to it:
 
 ```python
 from dbsetupmate import PostgresMate, PostgreSQLConfig, DBSetupMateException
+from dotenv import load_dotenv
 
+load_dotenv()
 mate = PostgresMate(PostgreSQLConfig.from_env())
 config = mate.config
+all_created = False
 
 try:
     # 1. Create a user together with its own database.
@@ -104,9 +109,12 @@ try:
         mate.create_shared_db()
 
     # 4. Give the new user read-only access to the shared database.
-    mate.grant_shared_access("course_user_01")
+    result = mate.grant_shared_access("course_user_01")
+    all_created = True
 except DBSetupMateException as ex:
     print(ex)
+    all_created = False
+print(f'All created: {all_created}')
 ```
 
 ## Development: Setup
