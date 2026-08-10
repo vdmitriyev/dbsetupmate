@@ -5,7 +5,7 @@ These are skipped by default. Start a server and run them explicitly::
     docker compose -f compose-tests.yaml up -d database-15
     POSTGRESQL_DB_HOST_PORT=5415 pytest -m integration
 
-Mocked tests prove dbmate builds the SQL it means to build; only these prove
+Mocked tests prove dbsetupmate builds the SQL it means to build; only these prove
 PostgreSQL accepts it and that the resulting privileges are what was intended.
 """
 
@@ -13,25 +13,25 @@ from dataclasses import replace
 
 import pytest
 
-from dbmate.exceptions import (
+from dbsetupmate.exceptions import (
     DatabaseAlreadyExistsException,
     DatabaseNotExistsException,
     DBConnectionException,
-    DBMateException,
+    DBSetupMateException,
     DBUserNotExistsException,
     InsufficientPrivilegeException,
 )
-from dbmate.postgresql.configs import PostgreSQLConfig
-from dbmate.postgresql.connection import connect
-from dbmate.postgresql.manager import PostgresMate
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql.connection import connect
+from dbsetupmate.postgresql.manager import PostgresMate
 
 pytestmark = pytest.mark.integration
 
-DB_NAME = "dbmate_it_db_01"
-DB_USER = "dbmate_it_user_01"
-DB_PASSWORD = "dbmate-it-secret"  # nosec B105
-READONLY_USER = "dbmate_it_ro"
-READONLY_PASSWORD = "dbmate-it-ro"  # nosec B105
+DB_NAME = "dbsetupmate_it_db_01"
+DB_USER = "dbsetupmate_it_user_01"
+DB_PASSWORD = "dbsetupmate-it-secret"  # nosec B105
+READONLY_USER = "dbsetupmate_it_ro"
+READONLY_PASSWORD = "dbsetupmate-it-ro"  # nosec B105
 
 
 def _admin(config, database=None):
@@ -57,7 +57,7 @@ def _drop_everything(config):
             with _admin(config) as cursor:
                 # The names are fixed literals defined above, never user input.
                 cursor.execute(statement)  # nosec B608
-        except DBMateException:
+        except DBSetupMateException:
             pass
 
 
@@ -69,7 +69,7 @@ def live_config_fixture():
     try:
         with _admin(config) as cursor:
             cursor.execute("SELECT 1;")
-    except DBMateException as ex:
+    except DBSetupMateException as ex:
         pytest.skip(f"no PostgreSQL reachable at {config.host}:{config.port} ({ex})")
 
     _drop_everything(config)
@@ -113,11 +113,11 @@ def test_creating_the_same_database_twice_is_rejected(mate):
 
 
 def test_show_next_db_name_continues_after_what_already_exists(live_config):
-    mate = PostgresMate(replace(live_config, db_prefix="dbmate_it_db", user_prefix="dbmate_it_user"))
+    mate = PostgresMate(replace(live_config, db_prefix="dbsetupmate_it_db", user_prefix="dbsetupmate_it_user"))
 
     names = mate.show_next_db_name()
 
-    assert (names.database, names.order) == ("dbmate_it_db_02", 2)
+    assert (names.database, names.order) == ("dbsetupmate_it_db_02", 2)
 
 
 def test_a_readonly_user_can_read_the_shared_database(mate, live_config):
@@ -154,7 +154,7 @@ def test_a_wrong_password_is_reported_as_a_connection_error(live_config):
 
 
 def test_the_created_database_is_listed_with_its_owner(live_config):
-    mate = PostgresMate(replace(live_config, db_prefix="dbmate_it_db", user_prefix="dbmate_it_user"))
+    mate = PostgresMate(replace(live_config, db_prefix="dbsetupmate_it_db", user_prefix="dbsetupmate_it_user"))
 
     listed = {item.database: item.owner for item in mate.list_dbs()}
 
@@ -165,7 +165,7 @@ def test_the_created_database_is_listed_with_its_owner(live_config):
 def test_revoking_shared_access_closes_the_shared_database_again(mate, live_config):
     mate.revoke_shared_access(READONLY_USER)
 
-    with pytest.raises(DBMateException):
+    with pytest.raises(DBSetupMateException):
         with connect(
             live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD
         ) as cursor:
@@ -180,19 +180,19 @@ def test_revoking_shared_access_closes_the_shared_database_again(mate, live_conf
 
 
 def test_a_changed_password_is_the_one_that_works(mate, live_config):
-    mate.set_user_password(READONLY_USER, "dbmate-it-ro-2")
+    mate.set_user_password(READONLY_USER, "dbsetupmate-it-ro-2")
 
     with pytest.raises(DBConnectionException):
         with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password=READONLY_PASSWORD):
             pass
 
-    with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password="dbmate-it-ro-2"):
+    with connect(live_config, database=live_config.shared_db, user=READONLY_USER, password="dbsetupmate-it-ro-2"):
         pass
 
 
 def test_changing_the_password_of_a_role_that_is_not_there_is_rejected(mate):
     with pytest.raises(DBUserNotExistsException):
-        mate.set_user_password("dbmate_it_nobody", "irrelevant")
+        mate.set_user_password("dbsetupmate_it_nobody", "irrelevant")
 
 
 def test_drop_db_removes_the_database_and_both_of_its_roles(mate):

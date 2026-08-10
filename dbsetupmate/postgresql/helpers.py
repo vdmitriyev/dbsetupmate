@@ -10,18 +10,18 @@ from typing import Optional
 import psycopg2
 from psycopg2 import sql
 
-from dbmate.exceptions import DBMateException, exception_for_pgcode
+from dbsetupmate.exceptions import DBSetupMateException, exception_for_pgcode
 
 
-def translate_error(error: psycopg2.Error, message: str) -> DBMateException:
-    """Maps a driver error onto the matching dbmate exception.
+def translate_error(error: psycopg2.Error, message: str) -> DBSetupMateException:
+    """Maps a driver error onto the matching dbsetupmate exception.
 
     Args:
         error (psycopg2.Error): the original driver error
-        message (str): context describing what dbmate was trying to do
+        message (str): context describing what dbsetupmate was trying to do
 
     Returns:
-        DBMateException: an instance of the most specific matching subclass
+        DBSetupMateException: an instance of the most specific matching subclass
     """
 
     pgcode = getattr(error, "pgcode", None)
@@ -57,4 +57,4 @@ def require_password(password: Optional[str], role: str) -> None:
     """Rejects an empty password before it reaches the server."""
 
     if not password:
-        raise DBMateException(f"A password is required for the role '{role}'")
+        raise DBSetupMateException(f"A password is required for the role '{role}'")

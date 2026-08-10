@@ -1,6 +1,6 @@
 """SQL statement builders for the PostgreSQL backend.
 
-Every statement dbmate sends is assembled here, so :mod:`dbmate.postgresql.manager`
+Every statement dbsetupmate sends is assembled here, so :mod:`dbsetupmate.postgresql.manager`
 stays pure orchestration and the SQL can be read (and tested) in one place.
 
 Each builder returns either a single :data:`Statement` or a ``List[Statement]``:

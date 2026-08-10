@@ -3,18 +3,18 @@
 import pytest
 from psycopg2 import errorcodes
 
-from dbmate.exceptions import (
+from dbsetupmate.exceptions import (
     DatabaseAlreadyExistsException,
     DatabaseNotExistsException,
     DBConnectionException,
-    DBMateException,
+    DBSetupMateException,
     DBOperationException,
     DBUserAlreadyExistsException,
     DBUserNotExistsException,
     InsufficientPrivilegeException,
     exception_for_pgcode,
 )
-from dbmate.postgresql.helpers import translate_error
+from dbsetupmate.postgresql.helpers import translate_error
 from tests.fakes import FakeError
 
 
@@ -44,7 +44,7 @@ def test_an_unknown_sqlstate_falls_back_to_the_generic_error():
 
 def test_every_exception_derives_from_the_base():
     for pgcode in [errorcodes.DUPLICATE_DATABASE, "XX000", None]:
-        assert issubclass(exception_for_pgcode(pgcode), DBMateException)
+        assert issubclass(exception_for_pgcode(pgcode), DBSetupMateException)
 
 
 def test_translate_error_keeps_the_context_and_the_server_details():

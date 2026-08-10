@@ -2,8 +2,8 @@
 
 import pytest
 
-from dbmate.exceptions import DBMateException
-from dbmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.exceptions import DBSetupMateException
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
 
 
 def test_defaults_when_the_environment_is_empty():
@@ -13,8 +13,8 @@ def test_defaults_when_the_environment_is_empty():
     assert config.port == 5432
     assert config.database == "postgres"
     assert config.admin_user == "postgres"
-    assert config.shared_db == "dbmate_db_shared"
-    assert config.db_prefix == "dbmate_db"
+    assert config.shared_db == "dbsetupmate_db_shared"
+    assert config.db_prefix == "dbsetupmate_db"
 
 
 def test_reads_every_setting_from_the_environment():
@@ -64,12 +64,12 @@ def test_the_port_is_an_integer():
 
 @pytest.mark.parametrize("value", ["not-a-port", "54.32"])
 def test_a_non_numeric_port_is_rejected(value):
-    with pytest.raises(DBMateException, match="must be an integer"):
+    with pytest.raises(DBSetupMateException, match="must be an integer"):
         PostgreSQLConfig.from_env({"POSTGRESQL_DB_HOST_PORT": value})
 
 
 def test_a_non_numeric_timeout_is_rejected():
-    with pytest.raises(DBMateException, match="POSTGRESQL_CONNECT_TIMEOUT"):
+    with pytest.raises(DBSetupMateException, match="POSTGRESQL_CONNECT_TIMEOUT"):
         PostgreSQLConfig.from_env({"POSTGRESQL_CONNECT_TIMEOUT": "soon"})
 
 

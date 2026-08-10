@@ -1,6 +1,6 @@
 """Connection handling for the PostgreSQL backend.
 
-Every connection in dbmate is opened through :func:`connect`, so that closing and
+Every connection in dbsetupmate is opened through :func:`connect`, so that closing and
 error translation happen in exactly one place.
 """
 
@@ -10,9 +10,9 @@ from typing import Iterator
 import psycopg2
 from psycopg2.extensions import cursor as Psycopg2Cursor
 
-from dbmate.configs import logger
-from dbmate.postgresql.configs import PostgreSQLConfig
-from dbmate.postgresql.helpers import translate_error
+from dbsetupmate.configs import logger
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql.helpers import translate_error
 
 
 @contextmanager
@@ -38,7 +38,7 @@ def connect(
         psycopg2.extensions.cursor: a cursor on the open connection
 
     Raises:
-        DBMateException: for any driver error, including failures to connect
+        DBSetupMateException: for any driver error, including failures to connect
     """
 
     try:

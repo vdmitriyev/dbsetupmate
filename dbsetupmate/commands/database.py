@@ -8,10 +8,10 @@ import typer
 from rich.table import Table
 from rich.text import Text
 
-from dbmate.configs import console, cprint, settings
-from dbmate.exceptions import DBMateException
-from dbmate.postgresql.configs import PostgreSQLConfig
-from dbmate.postgresql.manager import PostgresMate
+from dbsetupmate.configs import console, cprint, settings
+from dbsetupmate.exceptions import DBSetupMateException
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql.manager import PostgresMate
 
 app = typer.Typer(help="Manage database.")
 
@@ -27,11 +27,11 @@ def _mate() -> PostgresMate:
 
 @contextmanager
 def _reporting() -> Iterator[None]:
-    """Turns a dbmate failure into a red message and a non-zero exit code."""
+    """Turns a dbsetupmate failure into a red message and a non-zero exit code."""
 
     try:
         yield
-    except DBMateException as ex:
+    except DBSetupMateException as ex:
         cprint(Text("✖", style="bold red"), f"{ex}", style="red", log_level="error")
         raise typer.Exit(code=1) from ex
 

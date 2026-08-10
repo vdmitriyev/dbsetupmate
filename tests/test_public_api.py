@@ -2,34 +2,34 @@
 
 import importlib
 
-import dbmate
-from dbmate.postgresql.models import CreatedDatabase
+import dbsetupmate
+from dbsetupmate.postgresql.models import CreatedDatabase
 
 
 def test_the_client_and_its_config_are_importable_from_the_root():
-    from dbmate import PostgresMate, PostgreSQLConfig  # pylint: disable=import-outside-toplevel
+    from dbsetupmate import PostgresMate, PostgreSQLConfig  # pylint: disable=import-outside-toplevel
 
     assert PostgresMate(PostgreSQLConfig(host="db.test")).config.host == "db.test"
 
 
 def test_the_exceptions_are_importable_from_the_root():
-    from dbmate import DBMateException, InvalidIdentifierException  # pylint: disable=import-outside-toplevel
+    from dbsetupmate import DBSetupMateException, InvalidIdentifierException  # pylint: disable=import-outside-toplevel
 
-    assert issubclass(InvalidIdentifierException, DBMateException)
+    assert issubclass(InvalidIdentifierException, DBSetupMateException)
 
 
 def test_every_advertised_name_resolves():
-    for name in dbmate.__all__:
-        assert getattr(dbmate, name) is not None, name
+    for name in dbsetupmate.__all__:
+        assert getattr(dbsetupmate, name) is not None, name
 
 
 def test_dir_lists_the_public_names():
-    assert set(dir(dbmate)) == set(dbmate.__all__)
+    assert set(dir(dbsetupmate)) == set(dbsetupmate.__all__)
 
 
 def test_an_unknown_attribute_still_raises():
     try:
-        dbmate.does_not_exist  # pylint: disable=pointless-statement
+        dbsetupmate.does_not_exist  # pylint: disable=pointless-statement
     except AttributeError as ex:
         assert "does_not_exist" in str(ex)
     else:
@@ -37,18 +37,18 @@ def test_an_unknown_attribute_still_raises():
 
 
 def test_the_version_is_exposed():
-    assert isinstance(dbmate.__version__, str)
+    assert isinstance(dbsetupmate.__version__, str)
 
 
 def test_the_subpackage_exposes_the_same_api():
-    postgresql = importlib.import_module("dbmate.postgresql")
+    postgresql = importlib.import_module("dbsetupmate.postgresql")
 
     for name in postgresql.__all__:
         assert getattr(postgresql, name) is not None, name
 
 
 def test_the_convenience_functions_delegate_to_the_client(config, server):
-    from dbmate import create_db  # pylint: disable=import-outside-toplevel
+    from dbsetupmate import create_db  # pylint: disable=import-outside-toplevel
 
     created = create_db("course_db_01", "course_user_01", "s3cret", config=config)
 
@@ -58,7 +58,7 @@ def test_the_convenience_functions_delegate_to_the_client(config, server):
 
 
 def test_the_old_function_names_are_gone():
-    functions = importlib.import_module("dbmate.postgresql.functions")
+    functions = importlib.import_module("dbsetupmate.postgresql.functions")
 
     for removed in [
         "create_postgresql_db",

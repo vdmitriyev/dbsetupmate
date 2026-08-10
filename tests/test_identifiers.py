@@ -2,16 +2,16 @@
 
 import pytest
 
-from dbmate.exceptions import InvalidIdentifierException
-from dbmate.postgresql.identifiers import normalize_identifier
+from dbsetupmate.exceptions import InvalidIdentifierException
+from dbsetupmate.postgresql.identifiers import normalize_identifier
 
 
 def test_accepts_a_plain_name():
-    assert normalize_identifier("dbmate_db_01") == "dbmate_db_01"
+    assert normalize_identifier("dbsetupmate_db_01") == "dbsetupmate_db_01"
 
 
 def test_strips_surrounding_whitespace():
-    assert normalize_identifier("  dbmate_db_01\n") == "dbmate_db_01"
+    assert normalize_identifier("  dbsetupmate_db_01\n") == "dbsetupmate_db_01"
 
 
 def test_lower_cases_like_postgresql_would():

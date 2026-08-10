@@ -1,18 +1,18 @@
 """Module level convenience wrappers around :class:`PostgresMate`.
 
 Use these when a single call is all you need; hold a
-:class:`~dbmate.postgresql.manager.PostgresMate` instead when you make several
+:class:`~dbsetupmate.postgresql.manager.PostgresMate` instead when you make several
 calls against the same configuration.
 
-Every wrapper propagates :class:`~dbmate.exceptions.DBMateException` - none of
+Every wrapper propagates :class:`~dbsetupmate.exceptions.DBSetupMateException` - none of
 them swallow errors.
 """
 
 from typing import List, Optional
 
-from dbmate.postgresql.configs import PostgreSQLConfig
-from dbmate.postgresql.manager import PostgresMate
-from dbmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql.manager import PostgresMate
+from dbsetupmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase
 
 
 def create_db(

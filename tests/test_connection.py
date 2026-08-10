@@ -3,8 +3,8 @@
 import pytest
 from psycopg2 import errorcodes
 
-from dbmate.exceptions import DatabaseAlreadyExistsException, DBConnectionException, DBMateException
-from dbmate.postgresql.connection import connect
+from dbsetupmate.exceptions import DatabaseAlreadyExistsException, DBConnectionException, DBSetupMateException
+from dbsetupmate.postgresql.connection import connect
 from tests.fakes import FakeError
 
 
@@ -30,7 +30,7 @@ def test_closes_the_cursor_and_the_connection(config, server):
 
 
 def test_closes_the_connection_even_when_the_body_fails(config, server):
-    with pytest.raises(DBMateException):
+    with pytest.raises(DBSetupMateException):
         with _open(config, server) as cursor:
             cursor.execute("SELECT 1;")
             raise FakeError("boom", pgcode=errorcodes.DUPLICATE_DATABASE)
@@ -59,7 +59,7 @@ def test_a_transactional_block_commits_on_success(config, server):
 def test_a_transactional_block_rolls_back_on_failure(config, server):
     server.statement_errors["CREATE ROLE"] = FakeError("boom", pgcode=errorcodes.DUPLICATE_OBJECT)
 
-    with pytest.raises(DBMateException):
+    with pytest.raises(DBSetupMateException):
         with _open(config, server, autocommit=False) as cursor:
             cursor.execute("CREATE ROLE x")
 

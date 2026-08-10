@@ -2,8 +2,8 @@
 
 import pytest
 
-from dbmate.postgresql import connection as connection_module
-from dbmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql import connection as connection_module
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
 from tests.fakes import FakeServer
 
 

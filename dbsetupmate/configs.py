@@ -2,8 +2,8 @@
 
 from rich.console import Console
 
-from dbmate.constants import app_log_level
-from dbmate.logger import get_logger
+from dbsetupmate.constants import app_log_level
+from dbsetupmate.logger import get_logger
 
 
 class GlobalFlags:  # pylint: disable=too-few-public-methods

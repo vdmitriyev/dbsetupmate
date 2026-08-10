@@ -3,15 +3,15 @@
 import pytest
 from psycopg2 import errorcodes, sql
 
-from dbmate.exceptions import (
+from dbsetupmate.exceptions import (
     DatabaseAlreadyExistsException,
     DatabaseNotExistsException,
-    DBMateException,
+    DBSetupMateException,
     DBUserAlreadyExistsException,
     DBUserNotExistsException,
     InvalidIdentifierException,
 )
-from dbmate.postgresql.manager import PostgresMate
+from dbsetupmate.postgresql.manager import PostgresMate
 from tests.fakes import FakeError
 
 
@@ -136,7 +136,7 @@ def test_the_password_is_a_bound_parameter_and_never_appears_in_the_sql(mate, se
     assert len(create_login_role) == 1
     assert create_login_role[0].params == ("s3cret",)
 
-    # The secret must not be reachable through any statement dbmate built.
+    # The secret must not be reachable through any statement dbsetupmate built.
     assert all("s3cret" not in item.text for item in server.executed)
 
 
@@ -236,7 +236,7 @@ def test_a_failed_create_db_rolls_the_roles_back(mate, server):
         "boom", pgcode=errorcodes.INSUFFICIENT_PRIVILEGE, pgerror="permission denied to create database"
     )
 
-    with pytest.raises(DBMateException, match="permission denied"):
+    with pytest.raises(DBSetupMateException, match="permission denied"):
         mate.create_db("course_db_01", "course_user_01", "s3cret")
 
     dropped = [item.text for item in server.executed if "DROP ROLE" in item.text]
@@ -250,7 +250,7 @@ def test_a_failed_rollback_does_not_mask_the_original_error(mate, server):
     server.statement_errors["CREATE DATABASE"] = FakeError("boom", pgcode=errorcodes.INSUFFICIENT_PRIVILEGE)
     server.statement_errors["DROP ROLE"] = FakeError("cleanup failed", pgcode=errorcodes.INSUFFICIENT_PRIVILEGE)
 
-    with pytest.raises(DBMateException, match="boom"):
+    with pytest.raises(DBSetupMateException, match="boom"):
         mate.create_db("course_db_01", "course_user_01", "s3cret")
 
 
@@ -275,7 +275,7 @@ def test_an_unusable_name_is_rejected_without_connecting(mate, server, name):
 
 @pytest.mark.parametrize("password", ["", None])
 def test_an_empty_password_is_rejected_without_connecting(mate, server, password):
-    with pytest.raises(DBMateException, match="password is required"):
+    with pytest.raises(DBSetupMateException, match="password is required"):
         mate.create_db("course_db_01", "course_user_01", password)
 
     assert server.connections == []
@@ -440,7 +440,7 @@ def test_set_user_password_does_not_check_that_the_role_exists(mate, server):
 
 @pytest.mark.parametrize("password", ["", None])
 def test_set_user_password_rejects_an_empty_password_without_connecting(mate, server, password):
-    with pytest.raises(DBMateException, match="password is required"):
+    with pytest.raises(DBSetupMateException, match="password is required"):
         mate.set_user_password("course_user_01", password)
 
     assert server.connections == []

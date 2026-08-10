@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
-from dbmate.constants import (
+from dbsetupmate.constants import (
     APP_NAME,
     DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USER,
@@ -20,7 +20,7 @@ from dbmate.constants import (
     DEFAULT_SHARED_USER_READONLY_PASSWORD,
     DEFAULT_USER_PREFIX,
 )
-from dbmate.exceptions import DBMateException
+from dbsetupmate.exceptions import DBSetupMateException
 
 
 def _read(env: Mapping[str, str], key: str, default: str) -> str:
@@ -31,9 +31,9 @@ def _read(env: Mapping[str, str], key: str, default: str) -> str:
 
 @dataclass(frozen=True)
 class PostgreSQLConfig:  # pylint: disable=too-many-instance-attributes
-    """Connection settings used by :class:`dbmate.postgresql.manager.PostgresMate`.
+    """Connection settings used by :class:`dbsetupmate.postgresql.manager.PostgresMate`.
 
-    Build one explicitly to drive dbmate from another library, or call
+    Build one explicitly to drive dbsetupmate from another library, or call
     :meth:`from_env` to read the usual ``POSTGRESQL_*`` environment variables.
 
     Note:
@@ -75,7 +75,7 @@ class PostgreSQLConfig:  # pylint: disable=too-many-instance-attributes
             PostgreSQLConfig: settings, falling back to the documented defaults
 
         Raises:
-            DBMateException: if ``POSTGRESQL_DB_HOST_PORT`` is not an integer
+            DBSetupMateException: if ``POSTGRESQL_DB_HOST_PORT`` is not an integer
         """
 
         env = os.environ if env is None else env
@@ -84,13 +84,13 @@ class PostgreSQLConfig:  # pylint: disable=too-many-instance-attributes
         try:
             port = int(raw_port)
         except (TypeError, ValueError) as ex:
-            raise DBMateException(f"POSTGRESQL_DB_HOST_PORT must be an integer, got {raw_port!r}") from ex
+            raise DBSetupMateException(f"POSTGRESQL_DB_HOST_PORT must be an integer, got {raw_port!r}") from ex
 
         raw_timeout = _read(env, "POSTGRESQL_CONNECT_TIMEOUT", str(DEFAULT_CONNECT_TIMEOUT))
         try:
             connect_timeout = int(raw_timeout)
         except (TypeError, ValueError) as ex:
-            raise DBMateException(f"POSTGRESQL_CONNECT_TIMEOUT must be an integer, got {raw_timeout!r}") from ex
+            raise DBSetupMateException(f"POSTGRESQL_CONNECT_TIMEOUT must be an integer, got {raw_timeout!r}") from ex
 
         return cls(
             host=_read(env, "POSTGRESQL_DB_HOST", DEFAULT_DB_HOST),

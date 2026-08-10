@@ -1,1 +1,1 @@
-"""Test suite for dbmate."""
+"""Test suite for dbsetupmate."""

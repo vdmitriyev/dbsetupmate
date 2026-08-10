@@ -8,9 +8,9 @@ normalised to the lower case subset - which is what this module does.
 
 import re
 
-from dbmate.configs import logger
-from dbmate.constants import MAX_IDENTIFIER_BYTES
-from dbmate.exceptions import InvalidIdentifierException
+from dbsetupmate.configs import logger
+from dbsetupmate.constants import MAX_IDENTIFIER_BYTES
+from dbsetupmate.exceptions import InvalidIdentifierException
 
 #: Names that survive quoting unchanged and stay pleasant to administer.
 IDENTIFIER_PATTERN = re.compile(r"^[a-z_][a-z0-9_$]*$")

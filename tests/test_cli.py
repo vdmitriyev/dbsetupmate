@@ -8,10 +8,10 @@ masking in ``show-config``, and that a failure exits non-zero.
 import pytest
 from typer.testing import CliRunner
 
-from dbmate import cli
-from dbmate.commands import database as database_module
-from dbmate.configs import settings
-from dbmate.postgresql.manager import PostgresMate
+from dbsetupmate import cli
+from dbsetupmate.commands import database as database_module
+from dbsetupmate.configs import settings
+from dbsetupmate.postgresql.manager import PostgresMate
 
 ADMIN_PASSWORD = "admin-secret"  # nosec B105
 
@@ -20,7 +20,7 @@ ADMIN_PASSWORD = "admin-secret"  # nosec B105
 def runner_fixture(config, server, monkeypatch) -> CliRunner:  # pylint: disable=unused-argument
     """A runner whose commands talk to the fake server through the test config."""
 
-    # The CLI opts into file logging; a test must not drop a dbmate.log in the cwd.
+    # The CLI opts into file logging; a test must not drop a dbsetupmate.log in the cwd.
     monkeypatch.setattr(cli, "configure_logging", lambda *args, **kwargs: None)
     # `settings.dry_run` is set by the root callback, so it is read per call.
     monkeypatch.setattr(database_module, "_mate", lambda: PostgresMate(config, dry_run=settings.dry_run))
@@ -157,7 +157,7 @@ def test_set_user_password_takes_the_password_without_prompting_for_it(runner, s
     assert "n3w-secret" not in result.stdout
 
 
-def test_a_dbmate_failure_exits_with_code_one(runner):
+def test_a_dbsetupmate_failure_exits_with_code_one(runner):
     result = runner.invoke(
         cli.app,
         ["db", "set-user-password", "--user-name", "1bad", "--password", "s3cret"],

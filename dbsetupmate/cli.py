@@ -1,4 +1,4 @@
-"""Root command line interface of dbmate."""
+"""Root command line interface of dbsetupmate."""
 
 from pathlib import Path
 
@@ -8,15 +8,15 @@ from rich.table import Table
 from rich.text import Text
 from typing_extensions import Annotated
 
-from dbmate.commands import database as database_module
-from dbmate.commands import self as self_module
-from dbmate.configs import console, cprint, settings
-from dbmate.logger import configure_logging
-from dbmate.version import package_summary, package_version
+from dbsetupmate.commands import database as database_module
+from dbsetupmate.commands import self as self_module
+from dbsetupmate.configs import console, cprint, settings
+from dbsetupmate.logger import configure_logging
+from dbsetupmate.version import package_summary, package_version
 
 app = typer.Typer(
     help=(
-        "`dbmate` overtakes a role of a database mate, "
+        "`dbsetupmate` overtakes a role of a database mate, "
         "whose purpose is to create and maintain database schemas and users"
     )
 )

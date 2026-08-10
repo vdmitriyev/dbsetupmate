@@ -1,4 +1,4 @@
-"""Return values of the dbmate PostgreSQL API."""
+"""Return values of the dbsetupmate PostgreSQL API."""
 
 from dataclasses import dataclass
 
@@ -8,8 +8,8 @@ class DatabaseNames:
     """The next free auto-generated database and user names.
 
     Attributes:
-        database (str): name for the new database, e.g. ``dbmate_db_03``
-        user (str): name for the new login role, e.g. ``dbmate_user_03``
+        database (str): name for the new database, e.g. ``dbsetupmate_db_03``
+        user (str): name for the new login role, e.g. ``dbsetupmate_user_03``
         order (int): the number both names were built from
     """
 

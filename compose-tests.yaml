@@ -1,3 +1,5 @@
+name: dbsetupmate
+
 services:
 
   database-15:
@@ -9,18 +11,18 @@ services:
       PGDATA: /pgdata
       POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
       POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbsetupmate}
     ports:
       - "127.0.0.1:5415:5432"
     volumes:
-      - dbmate-pg15-db:/pgdata
+      - dbsetupmate-pg15-db:/pgdata
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - dbmate-network
+      - dbsetupmate-network
 
   database-16:
     image: "postgres:16"
@@ -31,18 +33,18 @@ services:
       PGDATA: /pgdata
       POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
       POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbsetupmate}
     ports:
       - "127.0.0.1:5416:5432"
     volumes:
-      - dbmate-pg16-db:/pgdata
+      - dbsetupmate-pg16-db:/pgdata
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - dbmate-network
+      - dbsetupmate-network
 
   database-17:
     image: "postgres:17"
@@ -53,18 +55,18 @@ services:
       PGDATA: /pgdata
       POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
       POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbsetupmate}
     ports:
       - "127.0.0.1:5417:5432"
     volumes:
-      - dbmate-pg17-db:/pgdata
+      - dbsetupmate-pg17-db:/pgdata
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - dbmate-network
+      - dbsetupmate-network
 
   database-18:
     image: "postgres:18"
@@ -75,25 +77,25 @@ services:
       PGDATA: /pgdata
       POSTGRES_DB: ${POSTGRESQL_DB_NAME:-postgres}
       POSTGRES_USER: ${POSTGRESQL_ADMIN_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbmate}
+      POSTGRES_PASSWORD: ${POSTGRESQL_ADMIN_PASSWORD:-dbsetupmate}
     ports:
       - "127.0.0.1:5418:5432"
     volumes:
-      - dbmate-pg18-db:/pgdata
+      - dbsetupmate-pg18-db:/pgdata
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_ADMIN_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - dbmate-network
+      - dbsetupmate-network
 
 volumes:
-  dbmate-pg15-db:
-  dbmate-pg16-db:
-  dbmate-pg17-db:
-  dbmate-pg18-db:
-  dbmate-pg19-db:
+  dbsetupmate-pg15-db:
+  dbsetupmate-pg16-db:
+  dbsetupmate-pg17-db:
+  dbsetupmate-pg18-db:
+  dbsetupmate-pg19-db:
 
 networks:
-  dbmate-network:
+  dbsetupmate-network:

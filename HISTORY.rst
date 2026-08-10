@@ -24,9 +24,9 @@ History
 * Internal refactor only; the public API and CLI are unchanged. ``manager.py``
   was split into a ``BasePostgresMate`` parent (the internals) and
   ``PostgresMate`` (the public API), SQL construction moved to
-  ``dbmate.postgresql.statements``, and the ``translate_error`` /
+  ``dbsetupmate.postgresql.statements``, and the ``translate_error`` /
   ``render_statement`` / ``require_password`` helpers moved to
-  ``dbmate.postgresql.helpers``.
+  ``dbsetupmate.postgresql.helpers``.
 
 0.5.0 (2026-08-10)
 ------------------
@@ -65,9 +65,9 @@ History
   * ``PostgreSQLConfig`` fields: ``demo_db``, ``demo_user``, ``demo_password``,
     ``demo_user_readonly``, ``demo_user_readonly_password`` -> ``shared_*``
 
-* **Breaking:** the default identifiers changed with them: ``dbmate_db_demo`` ->
-  ``dbmate_db_shared``, ``dbmate_user_demo`` -> ``dbmate_user_shared``,
-  ``dbmate_user_demo_ro`` -> ``dbmate_user_shared_ro``.
+* **Breaking:** the default identifiers changed with them: ``dbsetupmate_db_demo`` ->
+  ``dbsetupmate_db_shared``, ``dbsetupmate_user_demo`` -> ``dbsetupmate_user_shared``,
+  ``dbsetupmate_user_demo_ro`` -> ``dbsetupmate_user_shared_ro``.
 
 
 0.3.0 (2026-08-09)
@@ -90,15 +90,15 @@ History
 ------------------
 
 * Added a public API: ``PostgresMate``, ``PostgreSQLConfig`` and the module level
-  convenience functions are importable from ``dbmate``.
-* Backend operations raise ``DBMateException`` subclasses instead of returning ``bool``.
+  convenience functions are importable from ``dbsetupmate``.
+* Backend operations raise ``DBSetupMateException`` subclasses instead of returning ``bool``.
 * SQL is built with ``psycopg2.sql``; passwords are bound parameters and no longer
   part of the statement text.
 * ``--env-file`` is now honoured for the database settings.
 * Added the ``db init-demo``, ``db create-readonly-user`` and ``db next-names`` commands
   (renamed in 0.3.0); commands exit ``1`` on failure and ``--dry-run`` is honoured.
-* Added ``python -m dbmate``, ``py.typed`` and a test suite.
-* **Breaking:** the old ``dbmate.postgresql.functions`` names were removed.
+* Added ``python -m dbsetupmate``, ``py.typed`` and a test suite.
+* **Breaking:** the old ``dbsetupmate.postgresql.functions`` names were removed.
 
 0.1.0 (2026-08-08)
 ------------------

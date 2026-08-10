@@ -1,6 +1,6 @@
 """An in-memory stand-in for a PostgreSQL server.
 
-The fake records every statement dbmate sends, so tests can assert on the SQL
+The fake records every statement dbsetupmate sends, so tests can assert on the SQL
 that was built and on the parameters it was sent with - without a live database.
 """
 

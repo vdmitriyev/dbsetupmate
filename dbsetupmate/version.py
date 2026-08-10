@@ -2,16 +2,16 @@
 
 import importlib.metadata as importlib_metadata
 
-from dbmate.logger import get_logger
+from dbsetupmate.logger import get_logger
 
 logger = get_logger()
 
 
-def package_summary(package_name: str = "dbmate"):
+def package_summary(package_name: str = "dbsetupmate"):
     """Prints information about a Python package based on its metadata.
 
     Args:
-        package_name (str): The name of the package. Defaults to "dbmate".
+        package_name (str): The name of the package. Defaults to "dbsetupmate".
     """
     info = []
     try:
@@ -25,11 +25,11 @@ def package_summary(package_name: str = "dbmate"):
     return info
 
 
-def package_version(package_name: str = "dbmate") -> str:
+def package_version(package_name: str = "dbsetupmate") -> str:
     """Returns version information about a Python package based on its metadata.
 
     Args:
-        package_name (str): The name of the package. Defaults to "dbmate".
+        package_name (str): The name of the package. Defaults to "dbsetupmate".
 
     Returns:
         str: version. Defaults to "0.0.0"

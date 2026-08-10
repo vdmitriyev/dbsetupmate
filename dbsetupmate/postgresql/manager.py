@@ -1,29 +1,29 @@
-"""The PostgreSQL backend of dbmate.
+"""The PostgreSQL backend of dbsetupmate.
 
 All real database work lives here. :class:`PostgresMate` is the entry point for
 library consumers; its ``_``-prefixed internals sit on the :class:`BasePostgresMate`
 parent class it inherits from. The SQL those methods run is assembled in
-:mod:`dbmate.postgresql.statements`, and :mod:`dbmate.postgresql.functions` wraps
+:mod:`dbsetupmate.postgresql.statements`, and :mod:`dbsetupmate.postgresql.functions` wraps
 the public API in module level convenience functions.
 """
 
 from typing import Iterable, List, Optional, Sequence
 
-from dbmate.configs import cprint, logger
-from dbmate.exceptions import (
+from dbsetupmate.configs import cprint, logger
+from dbsetupmate.exceptions import (
     DatabaseAlreadyExistsException,
     DatabaseNotExistsException,
-    DBMateException,
+    DBSetupMateException,
     DBUserAlreadyExistsException,
     DBUserNotExistsException,
 )
-from dbmate.postgresql import statements
-from dbmate.postgresql.configs import PostgreSQLConfig
-from dbmate.postgresql.connection import connect
-from dbmate.postgresql.helpers import render_statement, require_password
-from dbmate.postgresql.identifiers import normalize_identifier
-from dbmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase
-from dbmate.postgresql.statements import Statement
+from dbsetupmate.postgresql import statements
+from dbsetupmate.postgresql.configs import PostgreSQLConfig
+from dbsetupmate.postgresql.connection import connect
+from dbsetupmate.postgresql.helpers import render_statement, require_password
+from dbsetupmate.postgresql.identifiers import normalize_identifier
+from dbsetupmate.postgresql.models import CreatedDatabase, DatabaseNames, ManagedDatabase
+from dbsetupmate.postgresql.statements import Statement
 
 
 class BasePostgresMate:  # pylint: disable=too-few-public-methods
@@ -31,7 +31,7 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
 
     This holds everything the public API is built on - opening connections,
     running or announcing statements, and the low-level existence checks - so
-    that :class:`PostgresMate` reads as a list of the operations dbmate offers.
+    that :class:`PostgresMate` reads as a list of the operations dbsetupmate offers.
 
     Args:
         config (PostgreSQLConfig, optional): connection settings. Defaults to
@@ -91,7 +91,7 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
     def _prefixed_rows(self, query: str, prefix: str) -> List[tuple]:
         """Runs an anchored prefix match as the admin and returns every row.
 
-        The three catalogue queries dbmate makes all match ``left(<name>::text, n)``
+        The three catalogue queries dbsetupmate makes all match ``left(<name>::text, n)``
         against a prefix, so they share the bound ``length``/``prefix`` parameters
         rather than each interpolating a ``LIKE`` pattern of their own.
 
@@ -131,7 +131,7 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
             with self._admin_connection() as cursor:
                 self._execute_all(cursor, [statements.drop_role_statement(role) for role in roles])
             logger.info("Rolled back the roles %s after a failed database creation", ", ".join(roles))
-        except DBMateException as ex:
+        except DBSetupMateException as ex:
             logger.warning("Could not roll back the roles %s: %s", ", ".join(roles), ex)
 
     # ------------------------------------------------------------------
@@ -159,7 +159,7 @@ class BasePostgresMate:  # pylint: disable=too-few-public-methods
 class PostgresMate(BasePostgresMate):
     """Creates and maintains PostgreSQL databases, roles and grants.
 
-    Every method raises a :class:`~dbmate.exceptions.DBMateException` subclass on
+    Every method raises a :class:`~dbsetupmate.exceptions.DBSetupMateException` subclass on
     failure instead of reporting it through a return value.
 
     Args:
@@ -235,7 +235,7 @@ class PostgresMate(BasePostgresMate):
         """Lists the databases built from the configured prefix, with their owners.
 
         Only databases whose name starts with ``<db_prefix>_`` are reported, so the
-        server's own databases and anything created outside dbmate stay out of the way.
+        server's own databases and anything created outside dbsetupmate stay out of the way.
 
         Returns:
             List[ManagedDatabase]: the matching databases, ordered by name
@@ -287,12 +287,12 @@ class PostgresMate(BasePostgresMate):
             InvalidIdentifierException: if a name is not a usable identifier
             DatabaseAlreadyExistsException: if the database is already present
             DBUserAlreadyExistsException: if one of the roles is already present
-            DBMateException: for any other failure
+            DBSetupMateException: for any other failure
 
         Note:
             On failure after the database itself was created, the objects created
             up to that point are left in place - only the roles are rolled back,
-            and only when ``CREATE DATABASE`` is what failed. dbmate never drops a
+            and only when ``CREATE DATABASE`` is what failed. dbsetupmate never drops a
             database implicitly.
         """
 
@@ -330,7 +330,7 @@ class PostgresMate(BasePostgresMate):
         try:
             with self._admin_connection() as cursor:
                 self._execute_all(cursor, database_statements)
-        except DBMateException:
+        except DBSetupMateException:
             self._drop_roles_quietly([db_user, db_name])
             raise
         logger.info("Database '%s' was created", db_name)
@@ -407,7 +407,7 @@ class PostgresMate(BasePostgresMate):
 
         Raises:
             DBUserNotExistsException: if the role does not exist
-            DBMateException: if the password is empty, or for any other failure
+            DBSetupMateException: if the password is empty, or for any other failure
         """
 
         user_name = normalize_identifier(user_name, "role")
@@ -435,7 +435,7 @@ class PostgresMate(BasePostgresMate):
 
         Raises:
             DBUserAlreadyExistsException: if the role is already present
-            DBMateException: for any other failure
+            DBSetupMateException: for any other failure
         """
 
         user_name = normalize_identifier(user_name or self.config.shared_user_readonly, "role")
@@ -496,11 +496,11 @@ class PostgresMate(BasePostgresMate):
         Raises:
             InvalidIdentifierException: if a name is not a usable identifier
             DatabaseNotExistsException: if the database is not there
-            DBMateException: for any other failure
+            DBSetupMateException: for any other failure
 
         Note:
             This is the one operation that destroys data, and nothing else in
-            dbmate calls it. A role that still owns objects in *another* database
+            dbsetupmate calls it. A role that still owns objects in *another* database
             cannot be dropped; that failure surfaces rather than being swallowed.
         """
 
@@ -538,10 +538,10 @@ class PostgresMate(BasePostgresMate):
         Raises:
             InvalidIdentifierException: if the name is not a usable identifier
             DBUserNotExistsException: if the role is not there
-            DBMateException: if the role still owns objects, or for any other failure
+            DBSetupMateException: if the role still owns objects, or for any other failure
 
         Note:
-            dbmate deliberately does not run ``DROP OWNED`` or ``REASSIGN OWNED``
+            dbsetupmate deliberately does not run ``DROP OWNED`` or ``REASSIGN OWNED``
             first: silently reassigning someone else's data is not a decision a
             provisioning tool should make. Drop the databases the role owns first.
         """

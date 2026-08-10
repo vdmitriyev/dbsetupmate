@@ -2,7 +2,7 @@ version: '3'
 
 vars:
   VENV_DIR: ".venv"
-  PACKAGE_NAME: "dbmate"
+  PACKAGE_NAME: "dbsetupmate"
   PACKAGE_VERSION:
     sh: |
       python -c """

@@ -2,7 +2,7 @@ version: '3'
 
 vars:
   COMPOSE_FILE: compose-tests.yaml
-  NETWORK_NAME: "dbmate_dbmate-network"
+  NETWORK_NAME: "dbsetupmate_dbsetupmate-network"
 
 tasks:
 

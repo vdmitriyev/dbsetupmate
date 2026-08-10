@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 
 BASEDIR = os.path.join(Path(__file__).resolve().parent.parent)
-CLI_NAME = "dbmate"
-APP_NAME = "dbmate"
-LOGGER_NAME = "dbmate"
-LOG_FILE_NAME = "dbmate.log"
+CLI_NAME = "dbsetupmate"
+APP_NAME = "dbsetupmate"
+LOGGER_NAME = "dbsetupmate"
+LOG_FILE_NAME = "dbsetupmate.log"
 LOG_FILE_PATH = os.path.join(BASEDIR, LOG_FILE_NAME)
 DEFAULT_LOG_LEVEL = "INFO"
 
@@ -20,14 +20,14 @@ DEFAULT_DB_NAME = "postgres"
 DEFAULT_ADMIN_USER = "postgres"
 # The password fallbacks below are documented placeholders for a local sandbox,
 # not credentials: any real deployment sets the matching POSTGRESQL_* variable.
-DEFAULT_ADMIN_PASSWORD = "dbmate"  # nosec B105
-DEFAULT_SHARED_DB = "dbmate_db_shared"
-DEFAULT_SHARED_USER = "dbmate_user_shared"
-DEFAULT_SHARED_PASSWORD = "dbmate"  # nosec B105
-DEFAULT_SHARED_USER_READONLY = "dbmate_user_shared_ro"
-DEFAULT_SHARED_USER_READONLY_PASSWORD = "dbmate"  # nosec B105
-DEFAULT_DB_PREFIX = "dbmate_db"
-DEFAULT_USER_PREFIX = "dbmate_user"
+DEFAULT_ADMIN_PASSWORD = "dbsetupmate"  # nosec B105
+DEFAULT_SHARED_DB = "dbsetupmate_db_shared"
+DEFAULT_SHARED_USER = "dbsetupmate_user_shared"
+DEFAULT_SHARED_PASSWORD = "dbsetupmate"  # nosec B105
+DEFAULT_SHARED_USER_READONLY = "dbsetupmate_user_shared_ro"
+DEFAULT_SHARED_USER_READONLY_PASSWORD = "dbsetupmate"  # nosec B105
+DEFAULT_DB_PREFIX = "dbsetupmate_db"
+DEFAULT_USER_PREFIX = "dbsetupmate_user"
 DEFAULT_CONNECT_TIMEOUT = 5
 
 # PostgreSQL truncates identifiers at NAMEDATALEN - 1 bytes instead of failing,

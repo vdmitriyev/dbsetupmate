@@ -1,6 +1,6 @@
 """Logging setup.
 
-Importing dbmate as a library must not touch the host application's logging, so
+Importing dbsetupmate as a library must not touch the host application's logging, so
 :func:`get_logger` only ever attaches a ``NullHandler``. The CLI opts into file
 logging by calling :func:`configure_logging`.
 """
@@ -8,16 +8,16 @@ logging by calling :func:`configure_logging`.
 import logging
 from typing import Optional
 
-from dbmate.constants import LOG_FILE_NAME, LOGGER_NAME, app_log_level
+from dbsetupmate.constants import LOG_FILE_NAME, LOGGER_NAME, app_log_level
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 
 def get_logger(logger_name: Optional[str] = None) -> logging.Logger:
-    """Returns the dbmate logger.
+    """Returns the dbsetupmate logger.
 
     Args:
-        logger_name (str, optional): logger to fetch. Defaults to ``"dbmate"``.
+        logger_name (str, optional): logger to fetch. Defaults to ``"dbsetupmate"``.
 
     Returns:
         logging.Logger: a logger that discards records until
@@ -32,13 +32,13 @@ def get_logger(logger_name: Optional[str] = None) -> logging.Logger:
 
 
 def configure_logging(level: Optional[str] = None, log_file: Optional[str] = None) -> logging.Logger:
-    """Attaches a file handler to the dbmate logger.
+    """Attaches a file handler to the dbsetupmate logger.
 
     Called by the CLI. A library consumer should configure logging itself instead.
 
     Args:
         level (str, optional): log level name. Defaults to ``APP_LOG_LEVEL``, read now.
-        log_file (str, optional): file to write to. Defaults to ``dbmate.log`` in the
+        log_file (str, optional): file to write to. Defaults to ``dbsetupmate.log`` in the
             current working directory - not next to the installed package, which may
             well be read-only.
 

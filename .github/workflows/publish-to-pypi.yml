@@ -22,7 +22,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/dbmate
+      url: https://test.pypi.org/p/dbsetupmate
 
     permissions:
       id-token: write  # mandatory for trusted publishing
@@ -48,7 +48,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://pypi.org/p/dbmate
+      url: https://pypi.org/p/dbsetupmate
 
     permissions:
       id-token: write  # mandatory for trusted publishing
