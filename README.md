@@ -86,6 +86,29 @@ except DBSetupMateException as ex:
 `PostgreSQLConfig.from_env()` reads the `POSTGRESQL_*` variables instead. Failures raise a
 subclass of `DBSetupMateException`, never a `bool`.
 
+A fuller workflow — create a user, ensure the shared database exists, and grant that user
+read-only access to it:
+
+```python
+from dbsetupmate import PostgresMate, PostgreSQLConfig, DBSetupMateException
+
+mate = PostgresMate(PostgreSQLConfig.from_env())
+config = mate.config
+
+try:
+    # 1. Create a user together with its own database.
+    mate.create_db("course_db_01", "course_user_01", "s3cret")
+
+    # 2. + 3. Create the shared database only if it is not there yet.
+    if not mate.database_exists(config.shared_db):
+        mate.create_shared_db()
+
+    # 4. Give the new user read-only access to the shared database.
+    mate.grant_shared_access("course_user_01")
+except DBSetupMateException as ex:
+    print(ex)
+```
+
 ## Development: Setup
 
 This guide walks through setting up the project for local development using `uv`.

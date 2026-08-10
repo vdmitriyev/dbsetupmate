@@ -8,6 +8,7 @@ History
 * **Breaking:** the ``database`` command group is renamed to ``postgresql``
   (hidden alias ``db`` -> ``pg``). The old names no longer work.
 * Added ``dbsmate`` as a console-script alias for ``dbsetupmate``.
+* Documented the create-user / ensure-shared-db / grant-access workflow in the README.
 
 0.6.0 (2026-08-10)
 ------------------
